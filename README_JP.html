@@ -206,6 +206,7 @@ kbd {
 <li><a href="#deps"><span class="n">16</span>依存ライブラリと安全対策</a></li>
 <li><a href="#messages"><span class="n">17</span>よくある警告・エラー</a></li>
 <li><a href="#limits"><span class="n">18</span>制限事項・サポート外</a></li>
+<li><a href="#dev"><span class="n">19</span>開発者向け</a></li>
 </ol>
 </nav>
 
@@ -213,7 +214,7 @@ kbd {
 <header>
 <h1>cv_slides 利用マニュアル</h1>
 <p class="lead">Markdown と画像から、オフラインで動く単一 HTML のスライドを生成するツール。</p>
-<p class="meta">feat/slide-generator ブランチ(M0〜M5 実装済み)の実装に基づく。2026-10-14 時点。</p>
+<p class="meta">バージョン 1.0</p>
 </header>
 
 <!-- ============================================================ -->
@@ -221,7 +222,6 @@ kbd {
 
 <ul>
 <li><code>slides/&lt;name&gt;/&lt;name&gt;.md</code> と画像から <strong>HTML ファイルを1つ</strong>生成する。CSS・JS・画像・ハイライト済みのコード・数式はすべて HTML に埋め込まれ、外部とは通信しない。<code>file://</code> で開いてオフラインで発表できる。</li>
-<li>重い処理(Markdown の解析、Shiki によるハイライト、KaTeX による数式の MathML 化、画像の Base64 化)は生成時に済ませる。出力 HTML に第三者のライブラリは入らない。</li>
 <li>同じ入力からは同じ HTML ができる(生成日時などを埋め込まない)。Git で差分を管理しやすい。</li>
 <li>スライドは 1920×1080(16:9)の固定キャンバスに描き、画面に合わせて拡大・縮小する。サムネイル・通常表示・全画面で改行位置は変わらない。</li>
 <li>ページ種別: タイトル / コンテンツ / 高橋メソッド / コードサンプル(JavaScript を実行。コンソール・音声・WASM)/ 全面画像。</li>
@@ -240,9 +240,9 @@ kbd {
 
 <div class="tbl"><table>
 <tr><th>対象</th><th>要件</th><th>理由</th></tr>
-<tr><td>Node.js</td><td><code>^24.18.1</code> または <code>&gt;=26</code>(<code>package.json</code> の <code>engines</code>)</td><td>TypeScript を Node.js の型ストリップ機能で直接実行する(ビルド工程・トランスパイラなし)。24.18.1 は 2026-10 時点で 24 系の既知のセキュリティ修正をすべて含む版。25 系はサポート終了のため対象外</td></tr>
-<tr><td>npm</td><td>11.10.0 以上(11.15.0 以上を推奨)</td><td><code>.npmrc</code> の <code>min-release-age</code>(公開から7日未満の版を使わない)は、11.10.0 未満の npm では<strong>警告なしで無視される</strong>。<code>allow-git</code> / <code>allow-remote</code> は 11.15.0 以上で有効</td></tr>
-<tr><td>ブラウザ</td><td><strong>Chrome(最新版)が必須</strong>。Edge / Safari / Firefox / iPadOS の Safari は可能な範囲(動作は確認していない)。iPhone・Android は表示と基本操作のみ(iPhone は全画面化なし)</td><td>主な発表環境。<code>file://</code> で開いたときのサンドボックス iframe 内の AudioWorklet は Chrome で確認済み</td></tr>
+<tr><td>Node.js</td><td><code>^24.18.1</code> または <code>&gt;=26</code>(<code>package.json</code> の <code>engines</code>)</td><td>24 系の既知のセキュリティ修正を含む版。25 系はサポート終了のため対象外</td></tr>
+<tr><td>npm</td><td>11.10.0 以上(11.15.0 以上を推奨)</td><td>古い npm では <code>.npmrc</code> の安全設定(→ <a href="#deps">16</a>)の一部が<strong>警告なしで無視される</strong>(11.10.0 未満では「公開から7日未満の版を使わない」、11.15.0 未満では git / URL 指定の依存の禁止)</td></tr>
+<tr><td>ブラウザ</td><td><strong>Chrome(最新版)が必須</strong>。Edge / Safari / Firefox / iPadOS の Safari は可能な範囲(動作は確認していない)。iPhone・Android は表示と基本操作のみ(iPhone は全画面化なし)</td><td>主な発表環境。コードサンプルページの音声(<code>file://</code> での AudioWorklet)は Chrome で確認済み</td></tr>
 <tr><td>開き方</td><td>生成した HTML をブラウザで直接開く(<code>file://</code>)。サーバー不要、オフラインで動く</td><td></td></tr>
 </table></div>
 
@@ -254,23 +254,6 @@ kbd {
 <pre><code>node -v      # v24.18.1 以上、または v26 以上
 npm -v       # 11.10.0 以上
 npm ci       # package-lock.json のとおりに入れる(npm install は使わない)</code></pre>
-
-<p>リポジトリ直下の <code>.npmrc</code> が次を強制する。ほかのキーは書かない(npm 12 は設定ファイルの未知のキーをエラーにする)。</p>
-
-<div class="tbl"><table>
-<tr><th>設定</th><th>効果</th></tr>
-<tr><td><code>ignore-scripts=true</code></td><td>依存パッケージのインストールスクリプトを実行しない(必要とするパッケージはない)</td></tr>
-<tr><td><code>min-release-age=7</code></td><td>公開から7日未満の版を解決しない(乗っ取られた版の多くは数日以内に削除される)</td></tr>
-<tr><td><code>allow-git=none</code>、<code>allow-remote=none</code></td><td>git 依存と URL 指定の依存を禁止</td></tr>
-<tr><td><code>save-exact=true</code></td><td><code>package.json</code> に版を完全一致で記録(<code>^</code> / <code>~</code> を付けない)</td></tr>
-</table></div>
-
-<div class="tbl"><table>
-<tr><th>開発用コマンド</th><th>内容</th></tr>
-<tr><td class="nw"><code>npm test</code></td><td>単体テスト(<code>node:test</code>。<code>scripts/test/</code> と <code>scripts/runtime/dev/</code>)</td></tr>
-<tr><td class="nw"><code>npm run typecheck</code></td><td><code>tsc --noEmit</code> による型チェック(型ストリップは実行時に型を検査しないため)</td></tr>
-<tr><td class="nw"><code>npm run build -- &lt;slide&gt;</code></td><td><code>./gen_slide.sh &lt;slide&gt;</code> と同じ</td></tr>
-</table></div>
 
 <h3>最初の1枚</h3>
 <pre><code>./gen_slide.sh new my_talk        # slides/my_talk/my_talk.md と img/ を作る
@@ -285,7 +268,7 @@ open -a "Google Chrome" slides/my_talk/my_talk.html   # 編集したらブラウ
 ./gen_slide.sh &lt;slide&gt; --watch        ファイル変更を監視して自動再生成(Ctrl+C で終了)
 ./gen_slide.sh new &lt;name&gt;             slides/&lt;name&gt;/ に雛形を作成</code></pre>
 
-<p><code>gen_slide.sh</code> は <code>node scripts/cli.ts</code> を呼ぶだけ。どのディレクトリからでも実行できる。スライド名と <code>designs/</code> はリポジトリ基準、md のパスと <code>-o</code> はカレントディレクトリ基準で解決する。</p>
+<p><code>gen_slide.sh</code> はどのディレクトリからでも実行できる。スライド名と <code>designs/</code> はリポジトリ基準、md のパスと <code>-o</code> はカレントディレクトリ基準で解決する。</p>
 
 <h3><code>&lt;slide&gt;</code> の指定</h3>
 <div class="tbl"><table>
@@ -327,17 +310,16 @@ open -a "Google Chrome" slides/my_talk/my_talk.html   # 編集したらブラウ
 
 <h3 id="watch"><code>--watch</code></h3>
 <ul>
-<li>最初に1回生成し、以後は変更のたびに再生成する(200ms のデバウンス)。「変更を検知しました」と結果の行の先頭に <code>[HH:MM:SS]</code> が付く。</li>
+<li>最初に1回生成し、以後は変更のたびに再生成する。「変更を検知しました」と結果の行の先頭に <code>[HH:MM:SS]</code> が付く。</li>
 <li>監視するもの:
   <ul>
   <li>md ファイル</li>
   <li>md と同じフォルダの <code>img/</code> 以下すべて(サブフォルダ・新しいファイルを含む)</li>
   <li>生成時に読んだファイル: 参照している画像・アイコン・アセット。見つからなかったものも含む(作ると再生成される)</li>
   <li>使っているデザインのフォルダ <code>designs/&lt;name&gt;/</code> 以下</li>
-  <li><code>scripts/runtime/</code> の <code>viewer.js</code>・<code>viewer.css</code>・<code>runner.js</code></li>
   </ul>
 </li>
-<li>監視しないもの: 出力 HTML、上記以外のファイル、生成ツール本体(<code>scripts/build/</code>、<code>scripts/languages/</code> など。変えたら <code>--watch</code> を起動し直す)。</li>
+<li>監視しないもの: 出力 HTML、上記以外のファイル。</li>
 <li>生成に失敗しても監視は続く(HTML は前回のまま)。</li>
 <li>ブラウザは自動で再読み込みしない。再読み込みしても URL の <code>#N</code> で同じスライドが開く。</li>
 <li>監視できるのはスライド1つだけ。<code>-o</code>・<code>-d</code>・<code>--strict</code> は併用できる。</li>
@@ -345,7 +327,7 @@ open -a "Google Chrome" slides/my_talk/my_talk.html   # 編集したらブラウ
 
 <h3 id="new"><code>new &lt;name&gt;</code></h3>
 <ul>
-<li><code>slides/&lt;name&gt;/&lt;name&gt;.md</code>(雛形 <code>scripts/templates/new_slide.md</code> のコピー)と <code>slides/&lt;name&gt;/img/.gitkeep</code> を作る。</li>
+<li><code>slides/&lt;name&gt;/&lt;name&gt;.md</code>(雛形)と <code>slides/&lt;name&gt;/img/.gitkeep</code> を作る。</li>
 <li>名前に使えるのは英数字・<code>-</code>・<code>_</code>。同名のフォルダがあればエラー(上書きしない)。</li>
 <li>雛形: フロントマター(<code>title</code>・<code>subtitle</code>・<code>author</code>・<code>date</code>・<code>event</code>、コメントアウトした <code>icon</code>・<code>design</code>)と、コンテンツ・高橋メソッド・コードの3枚。そのまま警告なしで生成できる。</li>
 </ul>
@@ -367,19 +349,13 @@ slides/
     &lt;name&gt;.html               生成物(既定の出力先。Git で管理してよい)
     img/                      画像(--watch はこのフォルダ全体を監視する)
     worklet/ wasm/ など        コードサンプルページのアセット(名前は自由。md のフォルダの中に置く)
-  test_slide/                 全機能のサンプル兼テスト用スライド
+  test_slide/                 全機能のサンプル
 designs/
   default/  dark/             design.json と design.css
-scripts/
-  cli.ts  watch.ts  new_slide.ts  build/    生成ツール本体
-  runtime/                    出力 HTML に埋め込むビューア(viewer.js / viewer.css / runner.js)
-  languages/                  Shiki に含まれない言語の文法(SuperCollider / FAUST / Onsa)と LICENSES.md
-  templates/new_slide.md      new コマンドの雛形
-  test/                       単体テスト</code></pre>
+scripts/                      生成ツール本体とビューア(→ <a href="#dev">19</a>)</code></pre>
 
 <ul>
 <li>画像とアセットのパスは md ファイルからの相対パスで書く。<code>img/</code> は慣例(<code>--watch</code> がフォルダごと監視する)。</li>
-<li>Onsa の文法を直すときは <code>scripts/languages/onsa.tmLanguage.json</code> を編集する。言語の追加には <code>scripts/build/highlight.ts</code> の変更が必要。</li>
 </ul>
 
 <!-- ============================================================ -->
@@ -518,7 +494,7 @@ event: "Audio Dev Meetup #12"
 <tr><td>見出し</td><td>○</td><td>先頭の <code>##</code> がページタイトル、<code>###</code> が小見出し。<code>####</code> 以下は出力されるが専用の装飾はない</td></tr>
 <tr><td>強調</td><td>○</td><td><code>*…*</code> は太字(斜体にしない)、<code>**…**</code> は太字 + アクセント色、<code>~~…~~</code> は薄い色の取り消し線(default / dark デザイン)</td></tr>
 <tr><td>インラインコード</td><td>○</td><td>中の <code>$</code> は数式にならない</td></tr>
-<tr><td>リンク</td><td>○</td><td>新しいタブで開く(<code>target="_blank" rel="noopener"</code>)。<code>&lt;https://…&gt;</code> 形式も可。URL を書いただけでは自動リンクにならない。<code>javascript:</code> などはリンクにならない。プレゼン中もリンクのクリックはページ送りにならない</td></tr>
+<tr><td>リンク</td><td>○</td><td>新しいタブで開く。<code>&lt;https://…&gt;</code> 形式も可。URL を書いただけでは自動リンクにならない。<code>javascript:</code> などの使えない URL は警告して、リンクにせず文字で表示する。プレゼン中もリンクのクリックはページ送りにならない</td></tr>
 <tr><td>箇条書き・番号付きリスト</td><td>○</td><td>入れ子は2階層まで推奨。3階層以上は警告(表示はする)</td></tr>
 <tr><td>引用</td><td>○</td><td></td></tr>
 <tr><td>表(GFM)</td><td>○</td><td><code>:---</code> / <code>---:</code> / <code>:---:</code> で揃え</td></tr>
@@ -545,11 +521,12 @@ event: "Audio Dev Meetup #12"
 <tr><td>配置</td><td>画像だけの段落がブロック画像になる。1段落に複数の画像があれば、それぞれ別のブロック(縦に並ぶ)</td></tr>
 <tr><td>キャプション</td><td>画像のタイトル <code>"…"</code> を画像の下に中央揃えで表示</td></tr>
 <tr><td>大きさ</td><td>既定は本文の残りの高さに収まる大きさに縮小して中央に置く(拡大しない)。<code>{width=60%}</code>(本文の幅に対する割合)か <code>{width=800px}</code>(キャンバス座標)で幅を指定できる。ほかの単位は警告して無視。<code>width</code> 以外の属性(<code>{height=…}</code>、<code>{.class}</code> など)は警告なしで捨てる</td></tr>
-<tr><td>埋め込み</td><td>Base64 の data URI。同じ画像を何度参照しても、ファイルの読み込みは1回だが、HTML には参照ごとに埋め込まれる</td></tr>
+<tr><td>埋め込み</td><td>HTML に埋め込む。同じ画像を何度も参照すると、参照ごとに埋め込まれる</td></tr>
 <tr><td>2MB 超</td><td>警告して、縮小せずに埋め込む。事前に縮小する(例: <code>sips -Z 1920 photo.jpg</code>)。警告はファイルごとに1回</td></tr>
-<tr><td>BMP</td><td>無圧縮の 24 / 32bit BMP(32bit は標準のビットマスクのみ。アルファ付き可)は生成時に PNG へ変換する。それ以外(16bit 以下、RLE などの圧縮、古い形式のヘッダ、非標準のビットマスク、約6700万画素超)は警告して BMP のまま埋め込む。2MB の判定は変換後の大きさ</td></tr>
+<tr><td>BMP</td><td>無圧縮の 24 / 32bit BMP は生成時に PNG へ変換する。それ以外(16bit 以下、RLE などの圧縮など)は警告して BMP のまま埋め込む。2MB の判定は変換後の大きさ</td></tr>
 <tr><td>見つからない</td><td>警告し、「画像なし: img/xxx.png」と書いた枠を表示</td></tr>
-<tr><td>URL 指定</td><td><code>https://…</code> / <code>//…</code> は使えない(警告してプレースホルダ)。<code>ftp:</code> などのスキームも警告。<code>file:</code> と <code>data:image/svg+xml</code> は Markdown の段階で画像として扱われず、警告なしで文字のまま出る</td></tr>
+<tr><td>URL 指定</td><td><code>https://…</code> / <code>//…</code> は使えない(警告し、「画像を表示できません: …」と書いた枠を表示)。<code>ftp:</code> などのスキームも同じ</td></tr>
+<tr><td>使えない形式</td><td><code>file:</code>・<code>data:image/svg+xml</code>・<code>javascript:</code> などは「使えない形式の画像です」と警告し、同じ枠を表示</td></tr>
 <tr><td>行内の画像</td><td>文章と同じ段落の画像はサポート外。警告して、そのまま行内に出力する(レイアウトは保証しない)</td></tr>
 <tr><td>列の中</td><td>列の残りの高さに収まるよう縮小</td></tr>
 </table></div>
@@ -580,27 +557,27 @@ float process(float x) {
 </table></div>
 
 <div class="tbl"><table>
-<tr><th>言語</th><th>言語名</th><th>別名</th><th>文法</th></tr>
-<tr><td>C</td><td><code>c</code></td><td>—</td><td>Shiki 同梱</td></tr>
-<tr><td>C++</td><td><code>cpp</code></td><td><code>c++</code></td><td>Shiki 同梱</td></tr>
-<tr><td>Rust</td><td><code>rust</code></td><td><code>rs</code></td><td>Shiki 同梱</td></tr>
-<tr><td>JavaScript</td><td><code>javascript</code></td><td><code>js</code>、<code>cjs</code>、<code>mjs</code></td><td>Shiki 同梱</td></tr>
-<tr><td>TypeScript</td><td><code>typescript</code></td><td><code>ts</code>、<code>cts</code>、<code>mts</code></td><td>Shiki 同梱</td></tr>
-<tr><td>C#</td><td><code>csharp</code></td><td><code>c#</code>、<code>cs</code></td><td>Shiki 同梱</td></tr>
-<tr><td>Java</td><td><code>java</code></td><td>—</td><td>Shiki 同梱</td></tr>
-<tr><td>Scala</td><td><code>scala</code></td><td>—</td><td>Shiki 同梱</td></tr>
-<tr><td>Ruby</td><td><code>ruby</code></td><td><code>rb</code></td><td>Shiki 同梱</td></tr>
-<tr><td>Python</td><td><code>python</code></td><td><code>py</code></td><td>Shiki 同梱</td></tr>
-<tr><td>Go</td><td><code>go</code></td><td>—</td><td>Shiki 同梱</td></tr>
-<tr><td>SuperCollider</td><td><code>supercollider</code></td><td><code>sclang</code>、<code>scd</code></td><td>supercollider/language-supercollider(MIT)</td></tr>
-<tr><td>FAUST</td><td><code>faust</code></td><td><code>dsp</code></td><td>jpcima/language-faust(MIT)</td></tr>
-<tr><td>Onsa</td><td><code>onsa</code></td><td><code>onsalang</code></td><td>自作の簡易版</td></tr>
+<tr><th>言語</th><th>言語名</th><th>別名</th></tr>
+<tr><td>C</td><td><code>c</code></td><td>—</td></tr>
+<tr><td>C++</td><td><code>cpp</code></td><td><code>c++</code></td></tr>
+<tr><td>Rust</td><td><code>rust</code></td><td><code>rs</code></td></tr>
+<tr><td>JavaScript</td><td><code>javascript</code></td><td><code>js</code>、<code>cjs</code>、<code>mjs</code></td></tr>
+<tr><td>TypeScript</td><td><code>typescript</code></td><td><code>ts</code>、<code>cts</code>、<code>mts</code></td></tr>
+<tr><td>C#</td><td><code>csharp</code></td><td><code>c#</code>、<code>cs</code></td></tr>
+<tr><td>Java</td><td><code>java</code></td><td>—</td></tr>
+<tr><td>Scala</td><td><code>scala</code></td><td>—</td></tr>
+<tr><td>Ruby</td><td><code>ruby</code></td><td><code>rb</code></td></tr>
+<tr><td>Python</td><td><code>python</code></td><td><code>py</code></td></tr>
+<tr><td>Go</td><td><code>go</code></td><td>—</td></tr>
+<tr><td>SuperCollider</td><td><code>supercollider</code></td><td><code>sclang</code>、<code>scd</code></td></tr>
+<tr><td>FAUST</td><td><code>faust</code></td><td><code>dsp</code></td></tr>
+<tr><td>Onsa</td><td><code>onsa</code></td><td><code>onsalang</code></td></tr>
 </table></div>
 <ul>
 <li>表にない言語は警告し、ハイライトせずに表示する(HTML はエスケープされる)。</li>
 <li>行は折り返さない。はみ出した部分は切り取られ、コンテンツページでは ⚠ の対象になる。1000文字を超える行には色を付けない。</li>
 <li>配色はデザインの <code>highlightTheme</code>(default は <code>github-light</code>、dark は <code>github-dark</code>)。</li>
-<li>SuperCollider と FAUST の文法は 2014〜2015年頃の簡易なもの(FAUST は <code>route</code> などの新しいキーワードを含まない)。入手元・ライセンスは <a href="scripts/languages/LICENSES.md">scripts/languages/LICENSES.md</a>。</li>
+<li>SuperCollider と FAUST の文法は 2014〜2015年頃の簡易なもの(FAUST は <code>route</code> などの新しいキーワードを含まない)。入手元・ライセンスは <a href="scripts/languages/LICENSES.md">scripts/languages/LICENSES.md</a>。Onsa の文法は自作の簡易版。</li>
 </ul>
 
 <!-- ============================================================ -->
@@ -639,10 +616,10 @@ $$y[n] = \sum_{k=0}^{N-1} h[k]\,x[n-k]$$</code></pre>
 <tr><td><code>\$</code></td><td><code>$</code> そのもの</td></tr>
 </table></div>
 <ul>
-<li>KaTeX で生成時に MathML へ変換する(CSS・フォントの埋め込みは不要。表示はブラウザの MathML 対応による)。</li>
+<li>KaTeX で生成時に MathML へ変換する(書ける TeX は KaTeX の対応範囲。表示はブラウザの MathML 対応による)。</li>
 <li>インラインコードとコード片の中は変換しない。</li>
 <li>変換できない TeX は警告し、TeX のソースをアクセント色の等幅文字で表示する。</li>
-<li><code>trust: false</code>(<code>\href</code> などは無効)、<code>maxSize: 10</code>。</li>
+<li><code>\href</code> などの外部を参照する命令は使えない。</li>
 </ul>
 
 <!-- ============================================================ -->
@@ -666,7 +643,7 @@ $$y[n] = \sum_{k=0}^{N-1} h[k]\,x[n-k]$$</code></pre>
 
 <h3>アセット</h3>
 <ul>
-<li>実行されるコードのブロックに <code>assets="worklet/a.js wasm/b.wasm"</code> と書く(スペース区切り。1つなら引用符なしも可)。生成時に Base64 で HTML に埋め込む(元の約1.33倍)。</li>
+<li>実行されるコードのブロックに <code>assets="worklet/a.js wasm/b.wasm"</code> と書く(スペース区切り。1つなら引用符なしも可)。生成時に HTML に埋め込む(元の約1.33倍の大きさになる)。</li>
 <li>パスは md ファイルのフォルダの<strong>中</strong>の相対パス。URL・絶対パス・フォルダの外(<code>../</code>)・存在しないファイルはエラー。2MB を超えると警告。</li>
 <li>実行されないブロックに書いた <code>assets</code> は警告して無視する。</li>
 <li><code>slide.asset()</code> には <code>assets</code> に書いた文字列をそのまま渡す。</li>
@@ -695,7 +672,7 @@ $$y[n] = \sum_{k=0}^{N-1} h[k]\,x[n-k]$$</code></pre>
 <h3>コンソール</h3>
 <ul>
 <li><code>console.log</code> / <code>info</code> / <code>warn</code> / <code>error</code> / <code>debug</code> を表示する(ブラウザの開発者ツールにも出る)。</li>
-<li>未捕捉の例外は <code>Uncaught Error: … (run.js:3:7)</code>、処理されなかった reject は <code>Uncaught (in promise) …</code> と表示する。</li>
+<li>未捕捉の例外は <code>Uncaught Error: … (noise.js:3:7)</code>、処理されなかった reject は <code>Uncaught (in promise) …</code> と表示する。位置のファイル名は実行ブロックのタイトル(<code>title="…"</code> か <code>js:noise.js</code>。表示ブロックがそのまま実行されるときは表示ブロックのタイトル)。タイトルがなければ <code>run.js</code>。</li>
 <li>文字列はそのまま、ほかは JSON 風に整形する(深さ2まで、配列・オブジェクトは100要素まで、循環参照は <code>[Circular]</code>、1回の出力は10000文字まで)。</li>
 <li>色: warn は黄、error は赤、debug とシステム行(▶ 実行開始 など)は薄い色。</li>
 <li>1000行を超えると古い行から捨てる。一番下を見ているときは自動でスクロールする。内容は次の Run まで残る(スライドを移動しても消えない)。</li>
@@ -713,13 +690,13 @@ $$y[n] = \sum_{k=0}^{N-1} h[k]\,x[n-k]$$</code></pre>
 <ul>
 <li>先読みのぶん音が 5ms 遅れる。モノラルの入力は両チャンネルに出る。マスター音量はない(音量はコード側で調整する)。</li>
 <li>パネルの表示: 「● 出力中」は音が出ている間、「リミッター作動中」は 3dB 以上音量を下げている間(デモの音量を下げる合図)。</li>
-<li>AudioWorklet が使えない環境では、DynamicsCompressor(-1 dBFS、ratio 20、knee 0)と ±1.0 のクリップで代用する(リミッターの読み込みに失敗した場合はコンソールに警告が出る)。</li>
+<li>AudioWorklet が使えない環境では、コンプレッサーと ±1.0 のクリップで代用する(リミッターの読み込みに失敗したときはコンソールに警告が出る)。</li>
 </ul>
 <div class="note"><p><code>ctx.destination</code> に直接つないだ音はリミッターを通らない。会場のスピーカーを守るため、必ず <code>slide.audioOutput()</code> につなぐ。</p></div>
 
 <h3>制約</h3>
 <ul>
-<li>コードはサンドボックス化した iframe(<code>sandbox="allow-scripts"</code>、<code>srcdoc</code>)の中で動き、スライド本体の DOM や状態には触れない。iframe はボタンの行だけなので、画面に描く場所はない(出力はコンソールと音声)。</li>
+<li>コードはサンドボックス化した iframe の中で動き、スライド本体の DOM や状態には触れない。iframe はボタンの行だけなので、画面に描く場所はない(出力はコンソールと音声)。</li>
 <li>Web Audio(AudioWorklet を含む)と WebAssembly を使える。外部のライブラリは読み込めない(オフライン前提)。必要なファイルはアセットで埋め込む。</li>
 <li>SharedArrayBuffer は使えない(<code>file://</code> では COOP / COEP ヘッダーを設定できない)。メインスレッドと AudioWorklet の間は MessagePort でやりとりする。</li>
 <li>同期的な無限ループは、ページ全体を固めることがある。</li>
@@ -738,7 +715,7 @@ console.log("hello", 42, { fc: 1000, q: 0.707 });
 console.warn("ゲインが大きすぎます");
 throw new Error("わざと投げる");
 ```</code></pre>
-<p class="muted">表示: <code>hello 42 { fc: 1000, q: 0.707 }</code> / 黄色の警告 / <code>Uncaught Error: わざと投げる (run.js:3:7)</code></p>
+<p class="muted">表示: <code>hello 42 { fc: 1000, q: 0.707 }</code> / 黄色の警告 / <code>Uncaught Error: わざと投げる (console.js:3:7)</code></p>
 
 <h3>例2: サイン波</h3>
 <pre><code>&lt;!-- page: code --&gt;
@@ -803,7 +780,7 @@ console.log(params);
 <li>開くとナビゲーションモード。URL に <code>#N</code> があればスライド N、なければ先頭を選ぶ。</li>
 <li>ナビゲーション → プレゼンテーション: 選択中のスライドから始める。戻ると、プレゼンで表示していたスライドが選ばれた状態になる。</li>
 <li>ページの切り替えにトランジションはない。先頭で「前」、末尾で「次」を押しても何もしない(ループしない)。</li>
-<li>一覧ペインの幅は画面幅の 18%(160〜320px)。選択を変えると、そのサムネイルが見える位置まで一覧が自動でスクロールする。縦長の画面では上にスライド、下に横スクロールの一覧。</li>
+<li>選択を変えると、そのサムネイルが見える位置まで一覧が自動でスクロールする。縦長の画面では上にスライド、下に横スクロールの一覧。</li>
 </ul>
 
 <h3>キーボード</h3>
@@ -833,7 +810,7 @@ console.log(params);
 <tr><td>ホイール</td><td>一覧のスクロール(ブラウザ既定)</td><td>下・右: 次 / 上・左: 前。1回のスクロール操作で1ページ</td></tr>
 </table></div>
 <ul>
-<li>プレゼン中のホイールは、トラックパッドの慣性で何ページも進まないよう、ページを送ったあとはイベントが途切れるか新しい加速を検知するまで無視する。逆方向に回すとすぐ戻る。<kbd>Ctrl</kbd> + ホイールはブラウザのズーム。</li>
+<li>プレゼン中のホイールは、トラックパッドの慣性で何ページも進まないようにしてある。逆方向に回すとすぐ戻る。<kbd>Ctrl</kbd> + ホイールはブラウザのズーム。</li>
 <li>リンク・ボタン・入力欄・コードサンプルページのコードとパネルの上では、クリックと長押しは要素自身の操作になる(ページ送りやプレゼン開始にならない)。ホイールは、コードサンプルページのコードとパネル、<code>&lt;textarea&gt;</code>・<code>&lt;select&gt;</code> の上ではスクロールになる。生 HTML の要素に <code>data-viewer-interactive</code> 属性を付けると、クリック・ホイールとも同じ扱いになる。</li>
 <li>プレゼン中、マウスを2秒動かさないとカーソルが消える。</li>
 </ul>
@@ -850,13 +827,13 @@ console.log(params);
 <tr><td>ダブルタップ</td><td>何もしない</td><td>タップ2回</td></tr>
 </table></div>
 <ul>
-<li>フリック: 600ms 以内に 50px 以上動かす。タップ: 移動 10px 未満で 600ms 以内に離す。2本目の指が触れたらジェスチャーを取り消す。</li>
+<li>2本目の指が触れたらジェスチャーを取り消す。</li>
 <li>プレゼン中はピンチズームとダブルタップズームを抑止する。</li>
 </ul>
 
 <h3>長押し</h3>
 <ul>
-<li>押した位置に円形の進行表示が出る。押している間に 10px 以上動くと取り消し。</li>
+<li>押した位置に円形の進行表示が出る。押している間に動かすと取り消し。</li>
 <li>マウス: 1秒たった時点でプレゼンが始まる(続くボタンの離しではページは進まない)。</li>
 <li>タッチ: 1秒たつと表示が緑になり「指を離すと開始」と出る。<strong>指を離した時点</strong>で始まる(ブラウザは全画面化をユーザー操作の直後にしか許さないため)。1秒前に離すと何も起きない。</li>
 <li>長押しでのテキスト選択・コンテキストメニュー・iOS の長押しメニューは出ない。</li>
@@ -864,7 +841,7 @@ console.log(params);
 
 <h3>全画面と Esc</h3>
 <ul>
-<li>プレゼン開始時に Fullscreen API でブラウザを全画面にする。使えない環境(iPhone の Safari など)や拒否された場合は、ウィンドウいっぱいに表示する。</li>
+<li>プレゼン開始時にブラウザを全画面にする。使えない環境(iPhone の Safari など)や拒否された場合は、ウィンドウいっぱいに表示する。</li>
 <li>全画面中の <kbd>Esc</kbd> や F11 などで全画面が解除されると、ナビゲーションモードに戻る(Esc がページに届かない場合もこれで戻る)。</li>
 </ul>
 
@@ -878,7 +855,7 @@ console.log(params);
 <h3 id="viewer-overflow">はみ出しの警告(⚠)</h3>
 <ul>
 <li>コンテンツページで本文が本文領域からはみ出す(コード片の行のはみ出しを含む)と、一覧のサムネイルに ⚠ が付く。マウスを載せると「内容がはみ出しています(縦 Npx / 横 Npx)」。ブラウザのコンソールにも <code>[cv_slides] スライド N: 内容が本文領域からはみ出しています(…)</code> と出る。</li>
-<li>はみ出した部分は切り取られる(自動縮小はしない)。判定はフォントの読み込み後と、画像の読み込み後に行う。⚠ は印刷しない。</li>
+<li>はみ出した部分は切り取られる(自動縮小はしない)。⚠ は印刷しない。</li>
 <li>対象外: タイトルページ、高橋メソッド(自動で収める)、全面画像、コードサンプルページ(コードとコンソールはスクロールする)。</li>
 </ul>
 
@@ -891,7 +868,7 @@ console.log(params);
 </ol>
 <div class="tbl"><table>
 <tr><th>印刷されるもの</th><th>印刷されないもの</th></tr>
-<tr><td>全スライド(表示中のものだけでなく全部)、背景色(<code>print-color-adjust: exact</code>)、ページ番号、高橋メソッドの自動サイズ</td><td>一覧ペイン、⚠、長押しの表示、閉じるアイコン、コードサンプルページのパネル(Run / Stop・Clear・コンソール)。コードは横幅いっぱいに表示し、領域を超える行は切り取る</td></tr>
+<tr><td>全スライド(表示中のものだけでなく全部)、背景色、ページ番号、高橋メソッドの自動サイズ</td><td>一覧ペイン、⚠、長押しの表示、閉じるアイコン、コードサンプルページのパネル(Run / Stop・Clear・コンソール)。コードは横幅いっぱいに表示し、領域を超える行は切り取る</td></tr>
 </table></div>
 <p>CLI から PDF を作る機能はない。</p>
 
@@ -951,7 +928,7 @@ console.log(params);
 <tr><td><code>.image__img</code>、<code>.image__caption</code></td><td>全面画像ページ(<code>data-fit="cover|contain"</code>)</td></tr>
 <tr><td><code>.code__description</code>、<code>.runner</code>、<code>.runner__code</code>、<code>.runner__panel</code>、<code>.runner__frame-slot</code>、<code>.runner__console-bar</code>、<code>.runner__clear</code>、<code>.runner__console</code>、<code>.runner__line--log</code> / <code>--info</code> / <code>--warn</code> / <code>--error</code> / <code>--debug</code> / <code>--system</code></td><td>コードサンプルページ</td></tr>
 </table></div>
-<p>DOM の全体は <a href="DETAILED_SPEC.md">DETAILED_SPEC.md</a> の 8.3 を参照。</p>
+<p>DOM の全体は <a href="DETAILED_SPEC.md">DETAILED_SPEC.md</a> の「スライドのDOM構造」を参照。</p>
 
 <h4>CSS 変数(default の値)</h4>
 <div class="tbl"><table>
@@ -984,30 +961,20 @@ console.log(params);
 
 <!-- ============================================================ -->
 <h2 id="deps"><span class="n">16</span>依存ライブラリと安全対策</h2>
-<div class="tbl"><table>
-<tr><th>パッケージ</th><th>版(完全一致)</th><th>用途</th></tr>
-<tr><td><code>markdown-it</code></td><td>15.0.2</td><td>Markdown の解析(<code>html: true</code>、<code>linkify: false</code>、<code>typographer: false</code>)</td></tr>
-<tr><td><code>markdown-it-attrs</code></td><td>5.0.1</td><td><code>{width=…}</code>(<code>allowedAttributes: ['width']</code>)</td></tr>
-<tr><td><code>markdown-it-container</code></td><td>4.0.0</td><td><code>::: col</code></td></tr>
-<tr><td><code>shiki</code></td><td>4.5.0</td><td>ハイライト(JavaScript 正規表現エンジン、必要な11言語と2テーマだけを読む)</td></tr>
-<tr><td><code>katex</code></td><td>0.19.0</td><td>数式 → MathML(<code>trust: false</code>)</td></tr>
-<tr><td><code>yaml</code></td><td>2.9.1</td><td>フロントマター(例外は種類を問わずエラー扱い)</td></tr>
-<tr><td><code>typescript</code>、<code>@types/node</code></td><td>6.0.3、26.6.4</td><td>開発用(型チェックのみ)</td></tr>
-</table></div>
 <ul>
-<li>どれも生成時にだけ動く。出力 HTML に入るのは自作の <code>viewer.js</code>・<code>viewer.css</code>・<code>runner.js</code> とデザインの CSS だけ。</li>
-<li>主なリスクは npm のサプライチェーン攻撃(インストール時・読み込み時に開発機の上でコードが動く)。<code>.npmrc</code>(→ <a href="#setup">3</a>)、完全一致の版、<code>package-lock.json</code> + <code>npm ci</code>、7日の待機期間で防ぐ。</li>
-<li>独自の文法(<code>scripts/languages/*.json</code>)は JSON としてデータで読む(JS として実行しない)。</li>
+<li>依存ライブラリ(markdown-it、Shiki、KaTeX、yaml など)は生成時にだけ使う。出力 HTML には入らない。</li>
+<li>インストールは必ず <code>npm ci</code>(<code>package-lock.json</code> の版どおりに入る)。<code>npm install</code> は使わない。</li>
+<li>リポジトリの <code>.npmrc</code> は、依存パッケージのインストールスクリプトを実行せず、公開から7日未満の版と git / URL 指定の依存を使わないようにする。乗っ取られた版を入れてしまう危険(npm のサプライチェーン攻撃)を減らすため。</li>
 <li>AI エージェントに <code>npm install</code> / <code>npm ci</code> を実行させるときは、権限確認を省くモードを使わない。</li>
 </ul>
-<h3>月1回の手動更新</h3>
+<h3>依存を更新するとき</h3>
 <ol>
-<li><code>npm outdated</code> で候補を見る(待機期間が効いた状態で解決される)。</li>
+<li><code>npm outdated</code> で候補を見る。</li>
 <li>更新後、<code>package-lock.json</code> の差分で、新しく増えたパッケージ、インストールスクリプトの有無(<code>hasInstallScript</code>)、公開者の変化を確認する。</li>
 <li><code>npm audit</code> と <code>npm audit signatures</code> を実行する。</li>
 <li><code>.claude/</code>・<code>.vscode/</code>・<code>.github/workflows/</code> に意図しない変更がないか確認してからコミットする。</li>
 </ol>
-<p>新しい依存を足す前は、隔離したフォルダで <code>npm install --ignore-scripts</code> を試し、増えるパッケージの数・容量・インストールスクリプトの有無、既知の脆弱性、更新の状況、公開アカウントの数を確かめる。詳しい根拠は <a href="reports/%E3%82%B9%E3%83%A9%E3%82%A4%E3%83%89%E7%94%9F%E6%88%90%20%E4%BE%9D%E5%AD%98%E3%83%A9%E3%82%A4%E3%83%96%E3%83%A9%E3%83%AA%20%E5%AE%89%E5%85%A8%E6%80%A7%E6%A4%9C%E8%A8%BC.md">reports/スライド生成 依存ライブラリ 安全性検証.md</a> と DETAILED_SPEC.md の 2.4。</p>
+<p>新しい依存を足す前は、隔離したフォルダで <code>npm install --ignore-scripts</code> を試し、増えるパッケージの数とインストールスクリプトの有無を確かめる。</p>
 
 <!-- ============================================================ -->
 <h2 id="messages"><span class="n">17</span>よくある警告・エラー</h2>
@@ -1058,11 +1025,13 @@ console.log(params);
 <tr><td>数式を変換できません: KaTeX parse error: …</td><td>警告</td><td>TeX を直す。<code>$</code> そのものは <code>\$</code></td></tr>
 </table></div>
 
-<h3>画像・コード片</h3>
+<h3>画像・リンク・コード片</h3>
 <div class="tbl msgs"><table>
 <tr><th>メッセージ</th><th>種別</th><th>対処</th></tr>
 <tr><td>画像ファイルが見つかりません: img/x.png</td><td>警告</td><td>パス(md からの相対)を確認</td></tr>
 <tr><td>URL指定の画像は使えません(出力HTMLは外部リソースを参照しません): https://…</td><td>警告</td><td>ダウンロードして <code>img/</code> に置く</td></tr>
+<tr><td>使えない形式の画像です: file:///…</td><td>警告</td><td>画像ファイルを md からの相対パスで指定する(SVG は data URI ではなくファイルにする)</td></tr>
+<tr><td>使えない形式のリンクです: javascript:…</td><td>警告</td><td><code>https://</code> などの URL にする</td></tr>
 <tr><td>未対応の画像形式です: img/a.tiff(jpg / jpeg / png / gif / svg / webp / bmp を使えます)</td><td>警告</td><td>PNG などに変換する</td></tr>
 <tr><td>画像が 2.0MB を超えています(3.4MB): img/a.jpg。事前に縮小してください(例: sips -Z 1920 a.jpg)</td><td>警告</td><td>縮小する</td></tr>
 <tr><td>BMP を PNG に変換できないため、そのまま埋め込みます: …(…)</td><td>警告</td><td>無圧縮の 24 / 32bit にするか PNG にする</td></tr>
@@ -1109,15 +1078,29 @@ console.log(params);
 <li>図(Mermaid など)、脚注、タスクリスト。</li>
 <li>縦横比は 16:9(1920×1080)のみ。</li>
 <li>画像の自動縮小(2MB 超は警告のみ)、URL 指定の画像。</li>
+<li><code>file:</code>・<code>data:image/svg+xml</code>・<code>javascript:</code> などの画像とリンク(警告して、画像は「画像を表示できません」の枠、リンクは文字で表示)。</li>
 <li>同じ画像を複数回参照すると、参照ごとに HTML に埋め込まれる(ファイルが大きくなる)。</li>
 <li>CLI からの PDF 生成(ブラウザの印刷を使う)、GUI での編集。</li>
 <li>コードサンプルページ: 実行できるのは JavaScript だけ。Onsa の WASM 実行、発表中のコード編集、外部ライブラリ、SharedArrayBuffer、画面への描画は使えない。同期的な無限ループは止められないことがある。</li>
 <li>はみ出しの ⚠ はコンテンツページだけ。コードサンプルページ・タイトルページのはみ出しは検出しない。</li>
-<li>ハイライトのテーマは <code>github-light</code> / <code>github-dark</code> だけ。言語の追加には生成ツールの変更が必要。</li>
+<li>ハイライトのテーマは <code>github-light</code> / <code>github-dark</code> だけ。言語の追加には生成ツールの変更が必要(→ <a href="#dev">19</a>)。</li>
 <li>デザインのフォントや画像を埋め込む仕組み(<code>fonts/</code>・<code>assets/</code>)はない。<code>design.css</code> はそのまま入る。</li>
 <li><code>--watch</code> はブラウザを自動で再読み込みしない。監視できるのは1スライドだけ。</li>
 <li>生 HTML をサニタイズしない。他人が書いた Markdown を変換する用途には使わない。</li>
 <li>動作確認は Chrome のみ。Safari / Firefox / Edge は未確認。iPhone では全画面にならない。</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="dev"><span class="n">19</span>開発者向け</h2>
+<div class="tbl"><table>
+<tr><th>コマンド</th><th>内容</th></tr>
+<tr><td class="nw"><code>npm test</code></td><td>単体テスト</td></tr>
+<tr><td class="nw"><code>npm run typecheck</code></td><td>型チェック</td></tr>
+<tr><td class="nw"><code>npm run build -- &lt;slide&gt;</code></td><td><code>./gen_slide.sh &lt;slide&gt;</code> と同じ</td></tr>
+</table></div>
+<ul>
+<li>Onsa の文法は <code>scripts/languages/onsa.tmLanguage.json</code>。言語の追加には <code>scripts/build/highlight.ts</code> の変更が必要。</li>
+<li><code>--watch</code> は <code>scripts/runtime/</code>(ビューア)の変更も監視する。それ以外の <code>scripts/</code> を変えたときは起動し直す。</li>
 </ul>
 
 </main>

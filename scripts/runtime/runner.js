@@ -288,6 +288,21 @@
     return JSON.stringify(value).replace(/</g, "\\u003c");
   }
 
+  // The run code's file name in console error locations (6.3): runner__data `name` without control
+  // characters and line terminators (they would end the `//# sourceURL=` comment early).
+  function scriptName(name) {
+    var s = typeof name === "string" ? name.replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]/g, "").trim() : "";
+    return s || "run.js";
+  }
+
+  // The `//# sourceURL=` value for a name: V8 ignores the comment when the value has whitespace or
+  // a quote, so those are percent-encoded. where() shows the name again for this value.
+  function sourceUrlFor(name) {
+    return name.replace(/[\s"']/g, function (c) {
+      return c === "'" ? "%27" : encodeURIComponent(c);
+    });
+  }
+
   function cssValue(value) {
     return String(value || "").replace(/[<>{};]/g, "").trim();
   }
@@ -346,7 +361,8 @@
 
     function where(file, line, col) {
       if (!line) return "";
-      var name = String(file || "").split(/[\/\\]/).pop() || cfg.name;
+      var f = String(file || "");
+      var name = f === cfg.sourceUrl ? cfg.name : f.split(/[\/\\]/).pop() || cfg.name;
       return " (" + name + ":" + line + (col ? ":" + col : "") + ")";
     }
 
@@ -551,7 +567,7 @@
         renderStatus();
         var script = document.createElement("script");
         script.type = "module";
-        script.textContent = source + "\n//# sourceURL=" + cfg.name + "\n";
+        script.textContent = source + "\n//# sourceURL=" + cfg.sourceUrl + "\n";
         document.body.appendChild(script);
       });
     }
@@ -607,8 +623,10 @@
         : "") +
       '<span class="status"><button type="button" id="resume" hidden>クリックして音声を開始</button>' +
       '<span id="out" hidden>● 出力中</span><span id="limit" hidden>リミッター作動中</span></span>';
+    var name = scriptName(options.name);
     var cfg = {
-      name: options.name || "run.js",
+      name: name,
+      sourceUrl: sourceUrlFor(name),
       keys: FORWARDED_KEYS,
       limiterName: LIMITER_PROCESSOR,
       forceFallback: !!options.forceFallback
@@ -629,7 +647,9 @@
     createLimiterCore: createLimiterCore,
     limiterModuleSource: limiterModuleSource,
     buildSrcdoc: buildSrcdoc,
-    jsonForScript: jsonForScript
+    jsonForScript: jsonForScript,
+    scriptName: scriptName,
+    sourceUrlFor: sourceUrlFor
   };
 
   if (typeof document === "undefined") {
@@ -751,7 +771,7 @@
       frame.setAttribute("sandbox", SANDBOX);
       frame.setAttribute("allow", "autoplay");
       frame.setAttribute("title", "コードの実行(▶ Run / ■ Stop)");
-      frame.srcdoc = buildSrcdoc(theme(r), { runnable: true, name: data.name || "run.js" });
+      frame.srcdoc = buildSrcdoc(theme(r), { runnable: true, name: data.name });
       frame.addEventListener("load", function () {
         if (r.frame !== frame || !frame.contentWindow) return;
         frame.contentWindow.postMessage({ cvRunner: 1, type: "init", data: data, autorun: autorun }, "*");

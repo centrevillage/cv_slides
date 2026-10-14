@@ -177,3 +177,22 @@ test("srcdoc: Run/Stop only when runnable, no closing tags inside the script, JS
   assert.doesNotMatch(none, /<script/);
   assert.equal(r.jsonForScript({ s: "</script>" }), '{"s":"\\u003c/script>"}');
 });
+
+test("srcdoc: the run code name is sanitized and its sourceURL value is encoded", () => {
+  assert.equal(r.scriptName("sine.js"), "sine.js");
+  assert.equal(r.scriptName(undefined), "run.js");
+  assert.equal(r.scriptName(""), "run.js");
+  assert.equal(r.scriptName(42), "run.js");
+  assert.equal(r.scriptName("x.js\nalert(1) y \r\t\u0000"), "x.jsalert(1)y");
+  assert.equal(r.scriptName(" \n "), "run.js");
+  // V8 ignores a sourceURL with whitespace or quotes; those are percent-encoded.
+  assert.equal(r.sourceUrlFor("sine.js"), "sine.js");
+  assert.equal(r.sourceUrlFor("dir/sub/x.js"), "dir/sub/x.js");
+  assert.equal(r.sourceUrlFor("my demo's \"x\".js"), "my%20demo%27s%20%22x%22.js");
+  assert.equal(r.sourceUrlFor("全角　空白.js"), "全角%E3%80%80空白.js");
+  const theme = { fg: "#111", bg: "#eee" };
+  const doc = r.buildSrcdoc(theme, { runnable: true, name: "a b\n</script>.js" });
+  assert.match(doc, /"name":"a b\\u003c\/script>\.js","sourceUrl":"a%20b\\u003c\/script>\.js"/);
+  assert.equal(doc.match(/<\/script/gi).length, 1);
+  assert.match(r.buildSrcdoc(theme, { runnable: true }), /"name":"run\.js","sourceUrl":"run\.js"/);
+});

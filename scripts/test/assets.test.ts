@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { inflateSync } from 'node:zlib';
-import { ImageEmbedder, bmpToPng, decodeBmp, type ReadFile } from '../build/assets.ts';
+import { ImageEmbedder, bmpToPng, decodeBmp, shortRef, type ReadFile } from '../build/assets.ts';
 
 function reader(files: Record<string, Uint8Array>): ReadFile & { reads: string[] } {
   const reads: string[] = [];
@@ -45,6 +45,45 @@ test('missing, remote and unsupported images give a warning and no URI', () => {
   assert.equal(tiff.uri, null);
   assert.match(tiff.warnings[0] ?? '', /未対応の画像形式/);
   assert.equal(e.embed('file:///etc/passwd.png').uri, null);
+});
+
+test('unusable references are flagged (placeholder text), missing files are not', () => {
+  const e = new ImageEmbedder({ baseDir: '/d', readFile: reader({ '/d/x.tiff': new Uint8Array([1]) }) });
+  assert.equal(e.embed('img/none.png').unusable, undefined);
+  assert.equal(e.embed('').unusable, undefined);
+  // x.tiff twice: the cached result keeps the flag
+  for (const src of ['https://example.com/a.png', '//cdn/a.png', 'ftp://h/a.png', 'x.tiff', 'x.tiff']) {
+    assert.equal(e.embed(src).unusable, true, src);
+  }
+});
+
+test('data URIs: png / gif / jpeg / webp are used as they are, others are unusable', () => {
+  const e = new ImageEmbedder({ baseDir: '/d', readFile: reader({}) });
+  for (const uri of ['data:image/png;base64,AA==', 'DATA:IMAGE/GIF;base64,R0lG', 'data:image/jpeg;base64,/9j/', 'data:image/webp;base64,UklG']) {
+    assert.deepEqual(e.embed(uri), { uri, warnings: [] });
+  }
+  const svg = `data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg">${'x'.repeat(5000)}</svg>`;
+  for (const src of [svg, 'data:image/bmp;base64,Qk0=', 'data:text/html,<b>x</b>', 'data:image/png,raw']) {
+    const r = e.embed(src);
+    assert.equal(r.uri, null, src);
+    assert.equal(r.unusable, true);
+    assert.equal(r.warnings.length, 1);
+    assert.match(r.warnings[0] ?? '', /^使えない形式の画像です: data:/);
+  }
+  const long = e.embed(svg).warnings[0] ?? '';
+  assert.ok(long.length < 100, long);
+  assert.doesNotMatch(long, /xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx/);
+});
+
+test('shortRef removes control characters and cuts to 60 characters', () => {
+  assert.equal(shortRef('img/a.png'), 'img/a.png');
+  assert.equal(shortRef('a\nb\u0000c\u2028d\u0085e'), 'a b c d e');
+  assert.equal(shortRef('x'.repeat(60)), 'x'.repeat(60));
+  assert.equal(shortRef('x'.repeat(61)), `${'x'.repeat(60)}…`);
+  assert.equal(shortRef('x'.repeat(1_000_000)), `${'x'.repeat(60)}…`);
+  // characters, not UTF-16 code units; no lone surrogates
+  assert.equal(shortRef('🎵'.repeat(70)), `${'🎵'.repeat(60)}…`);
+  assert.equal(shortRef(`${'x'.repeat(119)}🎵🎵`).isWellFormed(), true);
 });
 
 test('images over the size limit are embedded with a warning (once per file)', () => {

@@ -3,7 +3,7 @@ import type { Env, MarkdownIt, Token, RendererRule, StateBlock, StateCore, State
 import markdownItAttrs from 'markdown-it-attrs';
 import markdownItContainer from 'markdown-it-container';
 import katex from 'katex';
-import type { EmbedResult } from './assets.ts';
+import { shortRef, type EmbedResult } from './assets.ts';
 import type { CodeHighlighter } from './highlight.ts';
 
 const NOTE_COMMENT = /^\s*<!--\s*note\s*:[\s\S]*-->\s*$/;
@@ -323,7 +323,7 @@ function imagesRule(state: StateCore): void {
     if (token.type === 'inline') {
       for (const child of token.children ?? []) {
         if (child.type === 'image' || child.type === 'math_inline') child.map = token.map;
-        if (child.type === 'image') child.meta = { inline: true };
+        if (child.type === 'image') child.meta = { ...(child.meta as ImageMeta | null), inline: true };
       }
     }
     out.push(token);
@@ -331,8 +331,16 @@ function imagesRule(state: StateCore): void {
   state.tokens = out;
 }
 
+/** `meta` of image tokens. */
+interface ImageMeta {
+  /** In a paragraph with text (set by imagesRule). */
+  inline?: boolean;
+  /** The source (URL-decoded) when markdown-it's link validation rejects it (set by rejectedUrlsRule). */
+  rejected?: string;
+}
+
 export interface ImageParts {
-  /** Embedded data URI, or null when missing (placeholder). */
+  /** Embedded data URI, or null when not embedded (placeholder). */
   uri: string | null;
   /** Path as written (URL-decoded), for the placeholder text. */
   src: string;
@@ -340,6 +348,8 @@ export interface ImageParts {
   title: string;
   /** Validated CSS width (e.g. "60%"), or null. */
   width: string | null;
+  /** The source itself cannot be used (rejected URL, remote URL, unsupported format), not a missing file. */
+  unusable: boolean;
 }
 
 /** Resolves an image token: embeds the file and validates `{width=...}`. Reports problems. */
@@ -357,14 +367,21 @@ export function resolveImage(md: MarkdownIt, token: Token, env: Env | undefined)
     if (WIDTH_VALUE.test(widthAttr)) width = widthAttr;
     else report(env, 'warning', `画像の width が不正です: "${widthAttr}"(60% や 800px の形式で書きます。無視しました)`, token.map);
   }
+  const rejected = (token.meta as ImageMeta | null)?.rejected;
+  if (rejected !== undefined) {
+    report(env, 'warning', `使えない形式の画像です: ${shortRef(rejected)}`, token.map);
+    return { uri: null, src: rejected, alt, title, width, unusable: true };
+  }
   const embed = slideEnv(env).embedImage;
   let uri: string | null = null;
+  let unusable = false;
   if (embed) {
     const result = embed(src);
     for (const w of result.warnings) report(env, 'warning', w, token.map);
     uri = result.uri;
+    unusable = result.unusable === true;
   }
-  return { uri, src, alt, title, width };
+  return { uri, src, alt, title, width, unusable };
 }
 
 export function imgTag(parts: ImageParts, className?: string): string {
@@ -377,12 +394,21 @@ export function imgTag(parts: ImageParts, className?: string): string {
   return `<img ${attrs.join(' ')}>`;
 }
 
-export function missingFigure(src: string): string {
+/** Placeholder text for an image that is not embedded. Unusable sources are shortened (data URIs). */
+function placeholderText(parts: ImageParts): string {
+  return parts.unusable ? `画像を表示できません: ${shortRef(parts.src)}` : `画像なし: ${parts.src}`;
+}
+
+export function missingFigure(parts: ImageParts): string {
   return (
     `<figure class="figure figure--image figure--missing">\n` +
-    `<div class="figure__missing">画像なし: ${escapeHtml(src)}</div>\n` +
+    `<div class="figure__missing">${escapeHtml(placeholderText(parts))}</div>\n` +
     `</figure>`
   );
+}
+
+function missingInline(parts: ImageParts): string {
+  return `<span class="figure__missing">${escapeHtml(placeholderText(parts))}</span>`;
 }
 
 function imagesPlugin(md: MarkdownIt): void {
@@ -391,7 +417,7 @@ function imagesPlugin(md: MarkdownIt): void {
     const image = tokens[idx]?.children?.[0];
     if (!image) return '';
     const parts = resolveImage(md, image, env);
-    if (parts.uri === null) return `${missingFigure(parts.src)}\n`;
+    if (parts.uri === null) return `${missingFigure(parts)}\n`;
     const out = [`<figure class="figure figure--image">`, imgTag(parts)];
     if (parts.title !== '') out.push(`<figcaption class="figure__caption">${escapeHtml(parts.title)}</figcaption>`);
     out.push('</figure>');
@@ -403,9 +429,60 @@ function imagesPlugin(md: MarkdownIt): void {
       report(env, 'warning', '文章と同じ段落にある画像(行内画像)はサポート外です(レイアウトは保証されません)', token.map);
     }
     const parts = resolveImage(md, token, env);
-    if (parts.uri === null) return `<span class="figure__missing">画像なし: ${escapeHtml(parts.src)}</span>`;
+    if (parts.uri === null) return missingInline(parts);
     return imgTag(parts);
   };
+}
+
+// ---------------------------------------------------------------------------
+// Link and image URLs (DETAILED_SPEC.md 2.4.3, 4.6, 4.7)
+// ---------------------------------------------------------------------------
+
+/**
+ * Removes URLs that markdown-it's link validation rejects from link and image tokens. A rejected
+ * link loses its link_open / link_close tokens (the text stays, with a warning); a rejected image
+ * keeps its token with an empty src and the source in `meta.rejected` (resolveImage warns and
+ * shows the placeholder). Only the children of block-level tokens are checked: links inside an
+ * image's alt text are only ever rendered as text.
+ */
+function rejectedUrlsRule(md: MarkdownIt, isAllowed: (url: string) => boolean, state: StateCore): void {
+  for (const token of state.tokens) {
+    if (!token.children) continue;
+    const kept: Token[] = [];
+    // One entry per open link: true when its link_open was dropped.
+    const dropped: boolean[] = [];
+    for (const child of token.children) {
+      if (child.type === 'link_open') {
+        const href = String(child.attrGet('href') ?? '');
+        const allowed = isAllowed(href);
+        dropped.push(!allowed);
+        if (!allowed) {
+          report(state.env, 'warning', `使えない形式のリンクです: ${shortRef(md.normalizeLinkText(href))}`, token.map);
+          continue;
+        }
+      } else if (child.type === 'link_close') {
+        if (dropped.pop() === true) continue;
+      } else if (child.type === 'image') {
+        const src = String(child.attrGet('src') ?? '');
+        if (!isAllowed(src)) {
+          child.attrSet('src', '');
+          child.meta = { ...(child.meta as ImageMeta | null), rejected: md.normalizeLinkText(src) };
+        }
+      }
+      kept.push(child);
+    }
+    token.children = kept;
+  }
+}
+
+function urlValidationPlugin(md: MarkdownIt): void {
+  // markdown-it's default validateLink stays the decision function (javascript:, vbscript:,
+  // file: and data: other than png / gif / jpeg / webp images are rejected). It is applied after
+  // parsing instead of during it, so a rejected URL still forms a link / image token (warned
+  // about) instead of silently staying literal Markdown text; the URL itself is never output.
+  const isAllowed = md.validateLink.bind(md);
+  md.validateLink = () => true;
+  md.core.ruler.push('rejected_urls', (state) => rejectedUrlsRule(md, isAllowed, state));
 }
 
 // ---------------------------------------------------------------------------
@@ -458,6 +535,8 @@ export function createMarkdown(highlighter: CodeHighlighter): MarkdownIt {
   md.use(columnsPlugin);
   md.use(imagesPlugin);
   md.use(codePlugin, highlighter);
+  // After imagesPlugin: the rule also checks the images moved into figure_image tokens.
+  md.use(urlValidationPlugin);
 
   const defaultLinkOpen: RendererRule =
     md.renderer.rules.link_open ?? ((tokens, idx, options, _env, self) => self.renderToken(tokens, idx, options));

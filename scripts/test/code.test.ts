@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildDeck, escapeScriptJson, type BuildOptions } from '../build/render.ts';
+import { buildDeck, escapeScriptJson, runFileName, type BuildOptions } from '../build/render.ts';
 import { loadRunAsset, runAssetType, type ReadFile } from '../build/assets.ts';
 
 const files: Record<string, Uint8Array> = {
@@ -27,6 +27,7 @@ const options: BuildOptions = {
 
 interface RunnerData {
   source: string | null;
+  name?: string;
   assets: Record<string, { type: string; data: string }>;
 }
 
@@ -167,6 +168,63 @@ test('code page: description keeps inline markup and the class directive is appl
 // ---------------------------------------------------------------------------
 // Assets
 // ---------------------------------------------------------------------------
+
+test('run data name: the title of the display block that is run', async () => {
+  const { data, json, texts } = await build(page(fence('js title="sine.js"', 'x()')));
+  assert.deepEqual(texts, []);
+  assert.equal(data?.name, 'sine.js');
+  // key order: source, name, assets
+  assert.match(json ?? '', /^\{"source":"[^"]*","name":"sine\.js","assets":\{\}\}$/);
+});
+
+test('run data name: the title of a hidden run block (title="..." and lang:file)', async () => {
+  const a = await build(page(`${fence('cpp title="biquad.cpp"', 'x;')}
+${fence('js run title="biquad-demo.js"', 'go();')}`));
+  assert.deepEqual(a.texts, []);
+  assert.equal(a.data?.name, 'biquad-demo.js');
+  const b = await build(page(`${fence('cpp', 'x;')}
+${fence("javascript:demo/run-me.js run", 'go();')}`));
+  assert.deepEqual(b.texts, []);
+  assert.equal(b.data?.name, 'demo/run-me.js');
+  const c = await build(page(`${fence('cpp', 'x;')}
+${fence("js run title='my demo.js'", 'go();')}`));
+  assert.equal(c.data?.name, 'my demo.js');
+});
+
+test('run data name is omitted without a run block title (the runner uses run.js)', async () => {
+  // The display block's title belongs to the displayed code, not to the hidden run block.
+  const a = await build(page(`${fence('js title="shown.js"', 'shown();')}
+${fence('js run', 'hidden();')}`));
+  assert.equal(a.data?.name, undefined);
+  assert.doesNotMatch(a.json ?? '', /"name"/);
+  const b = await build(page(fence('js', 'x()')));
+  assert.doesNotMatch(b.json ?? '', /"name"/);
+  const c = await build(page(fence('js title=""', 'x()')));
+  assert.doesNotMatch(c.json ?? '', /"name"/);
+  // nothing to run: no name either
+  const d = await build(page(fence('cpp title="a.cpp"', 'x')));
+  assert.doesNotMatch(d.json ?? '', /"name"/);
+});
+
+test('run data name: control characters and line terminators are removed', async () => {
+  assert.equal(runFileName('sine.js'), 'sine.js');
+  assert.equal(runFileName('a\nconsole.log(1)\r\t.js'), 'aconsole.log(1).js');
+  assert.equal(runFileName('x\u2028y\u2029z\u0000\u007f\u0085.js'), 'xyz.js');
+  assert.equal(runFileName('  spaced name.js  '), 'spaced name.js');
+  assert.equal(runFileName('\n\t'), null);
+  assert.equal(runFileName(''), null);
+  assert.equal(runFileName(null), null);
+  const { data, json } = await build(page(fence('js title="a\tb\u0007.js"', 'x()')));
+  assert.equal(data?.name, 'ab.js');
+  assert.doesNotMatch(json ?? '', /\\[tu]/);
+});
+
+test('run data name cannot break out of the data script', async () => {
+  const { json, data, html } = await build(page(fence('js title="</script><!--x.js"', 'x()')));
+  assert.equal(data?.name, '</script><!--x.js');
+  assert.doesNotMatch(json ?? '', /</);
+  assert.equal(html.match(/<script type="application\/json"/g)?.length, 1);
+});
 
 test('assets are embedded as base64 with the MIME type from the extension', async () => {
   const { texts, data } = await build(

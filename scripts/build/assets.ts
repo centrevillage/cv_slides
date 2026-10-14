@@ -37,6 +37,31 @@ export interface EmbedResult {
   uri: string | null;
   /** Warnings to report at the reference. */
   warnings: string[];
+  /**
+   * True when the reference itself cannot be used (URL, other scheme, unusable data URI,
+   * unsupported format), as opposed to a missing file. Selects the placeholder text.
+   */
+  unusable?: boolean;
+}
+
+/** Data URIs used as they are: the ones markdown-it's default link validation accepts. */
+const USABLE_DATA_URI = /^data:image\/(gif|png|jpeg|webp);/i;
+
+/** Longest source (in characters) quoted in messages and placeholders. */
+const SHORT_REF_LENGTH = 60;
+
+// C0 / C1 controls and the JS line terminators U+2028 / U+2029.
+const CONTROL_CHARS = /[\u0000-\u001f\u007f-\u009f\u2028\u2029]/g;
+
+/**
+ * A reference made safe to quote in a message or placeholder: control characters become spaces
+ * and it is cut to about 60 characters (a data URI can be megabytes long).
+ */
+export function shortRef(ref: string): string {
+  const cut = ref.length > SHORT_REF_LENGTH * 2;
+  const chars = Array.from((cut ? ref.slice(0, SHORT_REF_LENGTH * 2) : ref).replace(CONTROL_CHARS, ' ').trim());
+  const text = chars.length > SHORT_REF_LENGTH ? `${chars.slice(0, SHORT_REF_LENGTH).join('')}…` : chars.join('');
+  return (cut && chars.length <= SHORT_REF_LENGTH ? `${text}…` : text).toWellFormed();
 }
 
 export interface ImageEmbedderOptions {
@@ -66,12 +91,23 @@ export class ImageEmbedder {
   embed(src: string): EmbedResult {
     const ref = src.trim();
     if (ref === '') return { uri: null, warnings: ['画像のパスが空です'] };
-    if (/^data:image\//i.test(ref)) return { uri: ref, warnings: [] };
+    if (/^data:/i.test(ref)) {
+      if (USABLE_DATA_URI.test(ref)) return { uri: ref, warnings: [] };
+      return { uri: null, warnings: [`使えない形式の画像です: ${shortRef(ref)}`], unusable: true };
+    }
     if (/^(https?:)?\/\//i.test(ref)) {
-      return { uri: null, warnings: [`URL指定の画像は使えません(出力HTMLは外部リソースを参照しません): ${ref}`] };
+      return {
+        uri: null,
+        warnings: [`URL指定の画像は使えません(出力HTMLは外部リソースを参照しません): ${shortRef(ref)}`],
+        unusable: true,
+      };
     }
     if (/^[A-Za-z][A-Za-z0-9+.-]*:/.test(ref) && !/^[A-Za-z]:[\\/]/.test(ref)) {
-      return { uri: null, warnings: [`画像のパスにはファイルの相対パスを指定してください: ${ref}`] };
+      return {
+        uri: null,
+        warnings: [`画像のパスにはファイルの相対パスを指定してください: ${shortRef(ref)}`],
+        unusable: true,
+      };
     }
     const file = path.resolve(this.#baseDir, ref.replace(/[?#].*$/, ''));
     const cached = this.#cache.get(file);
@@ -89,6 +125,7 @@ export class ImageEmbedder {
       return {
         uri: null,
         warnings: [`未対応の画像形式です: ${ref}(jpg / jpeg / png / gif / svg / webp / bmp を使えます)`],
+        unusable: true,
       };
     }
     const data = this.#readFile(file);

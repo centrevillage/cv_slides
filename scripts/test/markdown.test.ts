@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildDeck, type BuildOptions } from '../build/render.ts';
+import { buildDeck, escapeHtml, type BuildOptions } from '../build/render.ts';
 import { renderTex } from '../build/markdown.ts';
 
 const FILES: Record<string, Uint8Array> = {
@@ -56,7 +56,124 @@ test('missing and remote images show a placeholder with a warning', async () => 
   assert.match(texts[0] ?? '', /^warning:3:画像ファイルが見つかりません/);
   assert.match(texts[1] ?? '', /^warning:5:URL指定の画像/);
   assert.match(html, /<figure class="figure figure--image figure--missing">\n<div class="figure__missing">画像なし: img\/none\.png<\/div>\n<\/figure>/);
+  assert.match(
+    html,
+    /<figure class="figure figure--image figure--missing">\n<div class="figure__missing">画像を表示できません: https:\/\/example\.com\/y\.png<\/div>\n<\/figure>/,
+  );
   assert.doesNotMatch(html, /src="https:/);
+});
+
+// --- URLs rejected by markdown-it's link validation (DETAILED_SPEC.md 4.6, 4.7) ---
+
+const SVG_DATA = 'data:image/svg+xml,%3Csvg%20xmlns%3D%22http://www.w3.org/2000/svg%22%20onload%3D%22alert(1)%22%3E%3Ccircle%20r%3D%2210%22/%3E%3C/svg%3E';
+
+/** How the SVG data URI is quoted in messages: URL-decoded and cut to 60 characters. */
+const SVG_SHORT = 'data:image/svg+xml,<svg xmlns%3D"http://www.w3.org/2000/svg"…';
+
+/** Every href / src attribute value in the HTML. */
+function urlAttributes(html: string): string[] {
+  return [...html.matchAll(/\s(?:href|src)\s*=\s*"([^"]*)"/gi)].map((m) => m[1] ?? '');
+}
+
+test('block images with file:, data:image/svg+xml and javascript: sources: warning and placeholder', async () => {
+  const { html, texts } = await build(
+    `## a\n\n![f](file:///etc/passwd.png)\n\n![s](${SVG_DATA})\n\n![j](javascript:alert(1))\n\n![v](VBScript:msgbox(1) "t"){width=50%}\n`,
+  );
+  assert.deepEqual(texts, [
+    'warning:3:使えない形式の画像です: file:///etc/passwd.png',
+    `warning:5:使えない形式の画像です: ${SVG_SHORT}`,
+    'warning:7:使えない形式の画像です: javascript:alert(1)',
+    'warning:9:使えない形式の画像です: VBScript:msgbox(1)',
+  ]);
+  const placeholders = [...html.matchAll(/<figure class="figure figure--image figure--missing">\n<div class="figure__missing">([^<]*)<\/div>\n<\/figure>/g)].map((m) => m[1]);
+  assert.deepEqual(placeholders, [
+    '画像を表示できません: file:///etc/passwd.png',
+    `画像を表示できません: ${escapeHtml(SVG_SHORT)}`,
+    '画像を表示できません: javascript:alert(1)',
+    '画像を表示できません: VBScript:msgbox(1)',
+  ]);
+  assert.equal(Array.from(SVG_SHORT).length, 61);
+  assert.doesNotMatch(html, /<img/);
+  assert.doesNotMatch(html, /!\[|\]\(/); // no literal Markdown left
+  assert.doesNotMatch(html, /circle|<\/svg|%3C\/svg/); // the data URI is cut, never output whole
+  assert.deepEqual(urlAttributes(html), []);
+});
+
+test('inline images with rejected sources: warning and the inline placeholder', async () => {
+  const { html, texts } = await build(`## a\n\ntext ![f](file:///x.png) and ![s](${SVG_DATA}) and ![j](javascript:alert(1)) end\n`);
+  assert.equal(texts.filter((t) => /行内画像/.test(t)).length, 3);
+  assert.deepEqual(
+    texts.filter((t) => !/行内画像/.test(t)),
+    [
+      'warning:3:使えない形式の画像です: file:///x.png',
+      `warning:3:使えない形式の画像です: ${SVG_SHORT}`,
+      'warning:3:使えない形式の画像です: javascript:alert(1)',
+    ],
+  );
+  assert.match(
+    html,
+    /<p>text <span class="figure__missing">画像を表示できません: file:\/\/\/x\.png<\/span> and <span class="figure__missing">画像を表示できません: data:image\/svg\+xml,&lt;svg [^<]*…<\/span> and <span class="figure__missing">画像を表示できません: javascript:alert\(1\)<\/span> end<\/p>/,
+  );
+  assert.doesNotMatch(html, /circle/);
+  assert.deepEqual(urlAttributes(html), []);
+});
+
+test('links with rejected URLs: warning and the link text as plain text', async () => {
+  const { html, texts } = await build(
+    [
+      '## a',
+      '',
+      '[run *me*](javascript:alert(1)) and [f](file:///etc/passwd) and [d](data:text/html,<b>x</b>)',
+      '',
+      '<javascript:alert(2)> and [ok](https://example.com) and [ref]',
+      '',
+      `[s](${SVG_DATA})`,
+      '',
+      '[ref]: vbscript:msgbox(1)',
+    ].join('\n'),
+  );
+  assert.deepEqual(texts, [
+    'warning:3:使えない形式のリンクです: javascript:alert(1)',
+    'warning:3:使えない形式のリンクです: file:///etc/passwd',
+    'warning:3:使えない形式のリンクです: data:text/html,<b>x</b>',
+    'warning:5:使えない形式のリンクです: javascript:alert(2)',
+    'warning:5:使えない形式のリンクです: vbscript:msgbox(1)',
+    `warning:7:使えない形式のリンクです: ${SVG_SHORT}`,
+  ]);
+  assert.match(html, /<p>run <em>me<\/em> and f and d<\/p>/);
+  assert.match(html, /<p>javascript:alert\(2\) and <a href="https:\/\/example\.com" target="_blank" rel="noopener">ok<\/a> and ref<\/p>/);
+  assert.match(html, /<p>s<\/p>/);
+  assert.deepEqual(urlAttributes(html), ['https://example.com']);
+});
+
+test('a rejected link around an image drops only the link', async () => {
+  const { html, texts } = await build('## a\n\n[![x](img/a.png)](javascript:alert(1))\n');
+  assert.ok(texts.includes('warning:3:使えない形式のリンクです: javascript:alert(1)'));
+  assert.match(html, /<img src="data:image\/png;base64,AQID" alt="x">/);
+  assert.deepEqual(urlAttributes(html), ['data:image/png;base64,AQID']);
+});
+
+test('accepted data URIs (png / gif / jpeg / webp) are used as they are', async () => {
+  const { html, texts } = await build(
+    '## a\n\n![p](data:image/png;base64,AA==)\n\n![g](data:image/gif;base64,R0lG)\n\n![w](data:image/webp;base64,UklG)\n\n[p](data:image/jpeg;base64,/9j/)\n',
+  );
+  assert.deepEqual(texts, []);
+  assert.deepEqual(urlAttributes(html), [
+    'data:image/png;base64,AA==',
+    'data:image/gif;base64,R0lG',
+    'data:image/webp;base64,UklG',
+    'data:image/jpeg;base64,/9j/',
+  ]);
+});
+
+test('rejected sources on the image page and the title page', async () => {
+  const a = await build('<!-- page: image -->\n![x](javascript:alert(1))\ncap\n');
+  assert.deepEqual(a.texts, ['warning:2:使えない形式の画像です: javascript:alert(1)']);
+  assert.match(a.sections[0] ?? '', /<div class="figure__missing">画像を表示できません: javascript:alert\(1\)<\/div>\n<\/figure>\n<p class="image__caption">cap<\/p>/);
+  const b = await build('<!-- page: title -->\n# [T](javascript:alert(1))\n');
+  assert.deepEqual(b.texts, ['warning:2:使えない形式のリンクです: javascript:alert(1)']);
+  assert.match(b.sections[0] ?? '', /<h1 class="title__main">T<\/h1>/);
+  assert.deepEqual(urlAttributes(a.html + b.html), []);
 });
 
 test('inline image warns but is embedded inline', async () => {

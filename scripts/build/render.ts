@@ -345,7 +345,7 @@ function imagePage(ctx: Context, slide: Slide): Page {
     if (parts.width !== null) {
       ctx.reporter.warn('全面画像ページでは width は使えません(無視しました)', loc(slide, block));
     }
-    image = parts.uri === null ? missingFigure(parts.src) : imgTag({ ...parts, width: null }, 'image__img');
+    image = parts.uri === null ? missingFigure(parts) : imgTag({ ...parts, width: null }, 'image__img');
   };
   const captionFrom = (children: Token[], block: Block): void => {
     const kept = children.filter((c) => c.type !== 'image');
@@ -411,6 +411,18 @@ interface Fence {
   js: boolean;
   /** Paths from `assets="..."` as written, or null without the option. */
   assets: string[] | null;
+  /** Title from `title="..."` or `lang:file`, or null. */
+  title: string | null;
+}
+
+/**
+ * The run code's file name for console error locations (runner__data `name`, DETAILED_SPEC.md
+ * 6.3, 8.3): the run block's title as written, without control characters and line terminators
+ * (the runner puts it in a `//# sourceURL=` comment). Null when there is no usable title.
+ */
+export function runFileName(title: string | null): string | null {
+  const name = (title ?? '').replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]/g, '').trim();
+  return name === '' ? null : name;
 }
 
 function readFence(ctx: Context, block: Block): Fence {
@@ -429,6 +441,7 @@ function readFence(ctx: Context, block: Block): Fence {
     run: info.rest.includes('run'),
     js: RUN_LANGUAGES.has(info.lang.toLowerCase()),
     assets,
+    title: info.title ?? null,
   };
 }
 
@@ -515,8 +528,10 @@ function codePage(ctx: Context, slide: Slide): Page {
     const html = ctx.md.renderer.render([display.token], ctx.md.options, env).trimEnd();
     figure = html.replace(/^<figure class="([^"]*)"/, '<figure class="$1 runner__code"');
   }
+  const name = runFileName(runFence?.title ?? null);
   const data = {
     source: runFence === null ? null : Buffer.from(runFence.token.content, 'utf8').toString('base64'),
+    ...(name === null ? {} : { name }),
     // fromEntries defines own properties, so a key like "__proto__" survives JSON.stringify.
     assets: Object.fromEntries(assets),
   };
