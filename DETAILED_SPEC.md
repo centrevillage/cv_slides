@@ -1,14 +1,20 @@
-# スライド生成ツール 詳細仕様(ドラフト v0.2)
+# スライド生成ツール 詳細仕様(v0.6)
 
-本書は [APP_SPEC.md](APP_SPEC.md)(要件定義)をもとに詳細仕様を検討したドラフトである。
+本書は [APP_SPEC.md](APP_SPEC.md)(要件定義)をもとに詳細仕様をまとめたものである。
 
-- 未確定事項には `【Qxx】` を付け、[QUESTIONS.md](QUESTIONS.md) の質問番号と対応させている。
-- 未確定事項にも**推奨案を仮置き**して記述している。質問票の回答に応じて本書を更新する。
+- `【Qxx】` は、その内容を決めた [QUESTIONS.md](QUESTIONS.md) の質問番号を示す。
+- Q01〜Q54 はすべて回答済み(Q22・Q38・Q52〜Q54 は個別の回答、その他は推奨案で決定)。
+- Q53(Onsa の glue JS で SharedArrayBuffer を使わない設計)は、onsalang 側で検討中。
 
 | 版 | 日付 | 内容 |
 | --- | --- | --- |
-| v0.1 | 2026-10-14 | 初版 |
+| v0.7 | 2026-10-14 | Q52〜Q54 の回答を反映。Onsa の WASM 実行は当面対象外とし(4.11、6.5、10、12)、音声出力にリミッターを入れる仕様を追加(6.4、6.6) |
+| v0.6 | 2026-10-14 | Q01〜Q51 の決定を反映(Q22・Q38 以外は推奨案で決定)。仮置き・提案の表記を確定内容に改め、全面画像ページ(4.12)、数式の記法(4.6)、印刷・PDF(5.8)、ページ単位のデザイン変更(8.7)を追加 |
+| v0.5 | 2026-10-14 | Q38 の回答(コンソール出力・音声出力・WASM)を反映。4.11 に表示ブロック・実行ブロック・アセットの記法を追加し、6章に音声出力・WASM・実行コード用 API・技術検証項目を追加。7.6、8.3、12 章を更新 |
+| v0.4 | 2026-10-14 | 自作言語 Onsa のハイライト定義(簡易版)を追加し、4.8 と 2.3 に反映 |
+| v0.3 | 2026-10-14 | Q22 の回答を反映。4.8 にハイライト対象言語を追加し、2.3 の `scripts/languages/` を更新 |
 | v0.2 | 2026-10-14 | 依存ライブラリの安全性調査([reports/スライド生成 依存ライブラリ 安全性検証.md](reports/スライド生成%20依存ライブラリ%20安全性検証.md))の結果を反映。2.2 技術スタックを更新し、2.4 依存ライブラリの安全対策を追加。関連する 2.3、3.4、4.2、4.6〜4.8、6.2、9、12 章を更新 |
+| v0.1 | 2026-10-14 | 初版 |
 
 ---
 
@@ -45,7 +51,7 @@
 - 解析・シンタックスハイライト・画像埋め込みなど、重い処理はすべてビルド時に行う。
 - 出力HTMLは外部リソースに一切依存しない。オフラインかつ `file://` で開いて動作する(会場のネットワークが不安定でも発表できる)。
 
-### 2.2 技術スタック(推奨案)【Q04】
+### 2.2 技術スタック【Q04】
 
 バージョンは 2026-10-14 時点で安全性を確認したもの。実装開始時に 2.4.5 の手順で再確認し、完全一致で固定する。
 
@@ -58,20 +64,21 @@
 | Markdownパーサ | `markdown-it` 15.0.2 + `markdown-it-container` 4.0.0 + `markdown-it-attrs` 5.0.1 | 既知の勧告は5件ですべてDoS。すべて修正済みで、大半は無効にする `linkify` / `typographer` の経路。プラグイン2つは依存ゼロ |
 | フロントマター | 自前で切り出して `yaml` で解析(→ 4.2) | gray-matter は `---js` ブロックを `eval` で実行する機能を持ち、2021年から更新が止まっているため使わない。markdown-it-front-matter も、文字列を切り出すだけなので使わない |
 | YAML | `yaml` 2.9.1(YAML 1.2 Core) | 依存ゼロ。勧告2件はどちらもDoSで修正済み。日付を文字列のまま扱える |
+| 数式 | `katex` 0.19.0(ビルド時に MathML へ変換)【Q14】 | 追加は2パッケージ(katex と commander)。既知の XSS 系の勧告はすべて `trust` を有効にした場合のもので、0.18.2 以上・`trust: false` なら影響しない。MathML出力ならCSSとフォントの埋め込みも不要 |
 | シンタックスハイライト | `shiki` 4.5.0(ビルド時にHTML化。JavaScript正規表現エンジンを使用) | VS Codeと同じTextMate文法で高精度。独自言語の文法を追加しやすい。実行時JSが不要。勧告ゼロ。依存は45パッケージと多いが、インストールスクリプトはない。上流の Oniguruma がプロジェクトを終了したため、WASM版ではなくJSエンジンを使う |
 | ビューア | 依存ライブラリなしのVanilla JS + CSS | 単一HTMLを軽量に保つ。聴衆のブラウザで動くコードに第三者のコードを含めない |
 | テスト | `node:test`(パーサの単体テスト)+ `slides/test_slide` による目視確認 | 追加の依存なし |
 
-実測(2026-10-14、隔離した作業フォルダでインストールスクリプトを実行せずに導入して測定)では、必須の依存一式は56パッケージ・27MB(うち Shiki とその依存が45パッケージ)。`npm audit` の指摘は0件、インストールスクリプトを持つパッケージも0件で、全パッケージのレジストリ署名を検証できた。
+実測(2026-10-14、隔離した作業フォルダでインストールスクリプトを実行せずに導入して測定)では、KaTeX を除く必須の依存一式は56パッケージ・27MB(うち Shiki とその依存が45パッケージ)。`npm audit` の指摘は0件、インストールスクリプトを持つパッケージも0件で、全パッケージのレジストリ署名を検証できた。KaTeX は単独で2パッケージ・指摘0件だった。
 
-**オプションの依存**(質問票の回答で採用が決まった場合だけ追加する)
+**検討して採用しなかった依存**
 
-| 機能 | 候補 | 判定 | 条件 |
+| 機能 | 候補 | 結論 | 理由 |
 | --- | --- | --- | --- |
-| 数式【Q14】 | `katex` 0.19.0 | 採用可 | 0.18.2 以上。追加は2パッケージ。設定は 2.4.3 |
-| 画像の自動縮小【Q17】 | `sharp` 0.35.5 | 条件付き | 画像処理用のネイティブライブラリを27個同梱し、2026年にはその中に遠隔でコードを実行されうる脆弱性も出た(修正済み)。採用する場合は 0.35.5 以上に固定し、危険なデコーダを止める(2.4.3) |
-| BMP→PNG変換【Q18】 | 自前実装(Node.js 標準の `zlib` でPNG化) | 依存を追加しない | sharp はBMPを読めない。jimp は約63パッケージを引き込み、2025年に乗っ取られた debug を含むため使わない |
-| コード編集【Q40】 | CodeMirror 6 | 当面見送り | 18パッケージすべてが1つの個人アカウントから公開され、出力HTMLに入って聴衆のブラウザで動く。採用する場合は 2.4.5 のとおりリポジトリに同梱(vendoring)する |
+| 画像の自動縮小【Q17】 | `sharp` 0.35.5 | 採用しない(2MBを超える画像は警告し、作者が事前に縮小する) | 画像処理用のネイティブライブラリを27個同梱し、2026年にはその中に遠隔でコードを実行されうる脆弱性も出た(修正済み)。将来採用する場合は 0.35.5 以上に固定し、危険なデコーダを止める(2.4.3) |
+| BMP→PNG変換【Q18】 | jimp など | 採用しない(Node.js 標準の `zlib` を使って自前で変換する) | sharp はBMPを読めない。jimp は約63パッケージを引き込み、2025年に乗っ取られた debug を含む |
+| コード編集【Q40】 | CodeMirror 6 | 採用しない(コードは表示のみ) | 18パッケージすべてが1つの個人アカウントから公開され、出力HTMLに入って聴衆のブラウザで動く。将来採用する場合は 2.4.5 のとおりリポジトリに同梱(vendoring)する |
+| フロントマター | gray-matter | 採用しない(自前で切り出す) | `---js` ブロックを `eval` で実行する機能を持ち、2021年から更新が止まっている |
 
 ### 2.3 ディレクトリ構成(詳細化)
 
@@ -99,7 +106,11 @@ scripts/
     viewer.css             ペイン配置などの骨格(デザイン非依存)
     runner.js              コードサンプルページの実行環境
     vendor/                (Q40でエディタを採用した場合のみ)固定版をバンドルして同梱
-  languages/               独自言語の TextMate 文法(*.tmLanguage.json)【Q22】
+  languages/               Shiki に含まれない言語の TextMate 文法(→ 4.8)
+    onsa.tmLanguage.json   自作言語 Onsa(作成済み・簡易版)
+    supercollider.tmLanguage.json
+    faust.tmLanguage.json
+    LICENSES.md            各文法の入手元・コミット・ライセンス表記
   templates/
     new_slide.md           新規スライドの雛形【Q49】
   test/                    単体テスト
@@ -111,7 +122,7 @@ designs/
 slides/
   test_slide/              全機能を網羅したサンプル兼テスト用スライド
     test_slide.md
-    test_slide.html        生成物(Git管理するかは【Q06】)
+    test_slide.html        生成物(Git で管理する【Q06】)
     img/
 ```
 
@@ -157,8 +168,8 @@ save-exact=true
 | 独自プラグイン | 公開API(`md.block.ruler`、`md.renderer.rules` など)だけを使う | markdown-it 15.0.0 で内部ファイルの直接参照(`markdown-it/lib/*`)ができなくなった |
 | フロントマター | 先頭の `---` ブロックを自前で切り出し、`yaml.parse` で解析する。例外は種類を問わず(`RangeError` を含む)エラーとして扱う | yaml の CVE-2026-33532 では、深い入れ子で `YAMLParseError` ではなく `RangeError` が投げられる |
 | Shiki | JavaScript正規表現エンジン(`createJavaScriptRegexEngine`)を使う。`tokenizeMaxLineLength` に上限(例: 1000)を設定する。独自言語の文法は `.tmLanguage.json` を `JSON.parse` で読む | WASM版の土台である Oniguruma は2025年にプロジェクトを終了した。文法をJSモジュールとして `import` するとコードの実行になるため、データとして読む |
-| KaTeX(採用時) | `trust: false`、`output: 'mathml'`、`maxSize: 10` | XSS系の勧告はすべて `trust` の有効化が前提。MathML出力ならCSSとフォントの埋め込みも不要 |
-| sharp(採用時) | `sharp.block({ operation: ['VipsForeignLoadSvg', 'VipsForeignLoadHeif', 'VipsForeignLoadTiff', 'VipsForeignLoadNsgif', 'VipsForeignLoadVips'] })` で、2026年の勧告に出たデコーダを止める。sharp には JPEG / PNG / WebP だけを渡し、SVG と GIF はデコードせずそのまま埋め込む | 同梱のネイティブライブラリ(librsvg、libheif など)に由来する脆弱性を避ける。デコーダ名は実装時に sharp のドキュメントで確認する |
+| KaTeX | `trust: false`、`output: 'mathml'`、`maxSize: 10` | XSS系の勧告はすべて `trust` の有効化が前提。MathML出力ならCSSとフォントの埋め込みも不要 |
+| sharp(将来採用する場合) | `sharp.block({ operation: ['VipsForeignLoadSvg', 'VipsForeignLoadHeif', 'VipsForeignLoadTiff', 'VipsForeignLoadNsgif', 'VipsForeignLoadVips'] })` で、2026年の勧告に出たデコーダを止める。sharp には JPEG / PNG / WebP だけを渡し、SVG と GIF はデコードせずそのまま埋め込む | 同梱のネイティブライブラリ(librsvg、libheif など)に由来する脆弱性を避ける。デコーダ名は実装時に sharp のドキュメントで確認する |
 | TypeScript | `tsconfig.json` に `noEmit`、`erasableSyntaxOnly`、`verbatimModuleSyntax`、`rewriteRelativeImportExtensions` を指定する | 型ストリップは型チェックをせず、`enum` のような消去できない構文はエラーになる |
 
 #### 2.4.4 生成ツールの実行時
@@ -208,7 +219,7 @@ GitHub の Dependabot を使う場合は、`cooldown` を7日にして待機期�
 | 入力 | 内容 |
 | --- | --- |
 | スライドソース | UTF-8(BOMは除去)。改行コードは LF / CRLF どちらも可 |
-| 画像 | `jpg` / `jpeg` / `png` / `bmp`(追加形式は【Q15】)。パスはmdファイルからの相対パス |
+| 画像 | `jpg` / `jpeg` / `png` / `bmp` / `gif` / `svg` / `webp`【Q15】。パスはmdファイルからの相対パス。BMP はビルド時に PNG へ変換して埋め込む【Q18】 |
 | デザインテンプレート | `designs/<name>/` |
 
 | 出力 | 内容 |
@@ -295,9 +306,9 @@ y = b0*x + b1*x1 + b2*x2 - a1*y1 - a2*y2;
 ## サイン波を鳴らす
 
 ```js
-const ctx = new AudioContext();
+const ctx = slide.audioContext();
 const osc = new OscillatorNode(ctx, { frequency: 440 });
-osc.connect(ctx.destination);
+osc.connect(slide.audioOutput());
 osc.start();
 console.log("playing", osc.frequency.value, "Hz");
 ```
@@ -315,11 +326,10 @@ console.log("playing", osc.frequency.value, "Hz");
 | `subtitle` | string | サブタイトル |
 | `author` | string | 発表者名 |
 | `date` | string | 日付。**書いた文字列をそのまま表示**する(日付型への変換や書式変換はしない) |
-| `event` | string | イベント名(提案)【Q12】 |
-| `icon` | string | 発表者アイコン画像のパス(提案)【Q12】 |
+| `event` | string | イベント名【Q12】。タイトルページの日付の前に表示する |
+| `icon` | string | 発表者アイコン画像のパス【Q12】。タイトルページの発表者名の左に表示する |
 | `design` | string | デザインテンプレート名。既定は `default` |
-| `aspect` | `16:9` / `4:3` | 縦横比(提案)。既定は `16:9`【Q36】 |
-| `page_number` | bool | ページ番号の表示(提案)【Q33】 |
+| `page_number` | bool | ページ番号の表示【Q33】。既定は `true`(表示する) |
 
 - すべて任意。未知のキーは警告とする。
 - 解析方法: ファイルの1行目が `---` の場合、次の `---` 行までを切り出して `yaml.parse` で解析する(フロントマター用のライブラリは使わない。→ 2.4.3)。
@@ -346,11 +356,13 @@ console.log("playing", osc.frequency.value, "Hz");
 | `content` | コンテンツページ(既定値。省略可) |
 | `takahashi` | 高橋メソッドページ |
 | `code` | コードサンプルページ |
-| `image` | 全面画像ページ(提案)【Q24】 |
+| `image` | 全面画像ページ【Q24】(→ 4.12) |
 
 - HTMLコメントなので、GitHubなど通常のMarkdownプレビューでも表示が崩れない。
 - Marpなどで広く使われている形式で、LLMにも扱いやすい。
-- 書式は `key: value` をカンマで区切る形式とし、将来の拡張(例: `<!-- page: content, class: inverse -->`【Q47】)に備える。
+- 書式は `key: value` をカンマで区切る形式とする。`page` のほかに次のキーを使える。
+  - `class`: ページ単位のデザインのバリエーション(例: `<!-- page: content, class: inverse -->`)【Q47】。使える値はデザインテンプレートが定義する(→ 8.7)
+  - `fit`: 全面画像ページの画像の収め方(→ 4.12)
 - 省略記法として、本文が H1(`# テキスト`)だけのスライドは高橋メソッドページとみなす【Q09】。
 
 ### 4.5 タイトルページ【Q10】【Q11】
@@ -390,8 +402,8 @@ console.log("playing", osc.frequency.value, "Hz");
 | 画像 | ○ | → 4.7 |
 | 複数行コード片 | ○ | → 4.8 |
 | 列分割 | ○ | → 4.9 |
-| 数式 | 提案 | KaTeX でビルド時に MathML へ変換【Q14】。設定は 2.4.3 |
-| 図(Mermaid等) | × | 初期は対象外。画像で代用【Q14】 |
+| 数式 | ○ | 行内は `$...$`、独立した行は `$$...$$`(前後を空行で区切る)。KaTeX でビルド時に MathML へ変換する【Q14】。記法の解析は独自プラグインで行う(数式用の markdown-it プラグインは使わない)。設定は 2.4.3。`$` 自体を書くときは `\$` とする |
+| 図(Mermaid等) | × | 対象外。画像で代用する【Q14】 |
 | 脚注 | × | |
 
 ### 4.7 画像
@@ -406,8 +418,8 @@ console.log("playing", osc.frequency.value, "Hz");
 - サイズ: 既定では、本文領域に収まるよう縦横比を保って縮小し、中央に配置する(拡大はしない)。`{width=60%}` または `{width=800px}`(キャンバス座標)で幅を指定できる【Q16】。
   - 属性記法(`{...}`)で指定できるのは `width` だけとする。それ以外の属性は出力しない(→ 2.4.3)。
 - 埋め込み: Base64 の data URI として埋め込む。
-  - 大きな画像: 既定では縮小せず、2MBを超える画像は警告する。作者が事前に縮小する(macOS 標準の `sips` コマンドなど)。ビルド時の自動縮小(sharp を使用)は【Q17】で採用が決まった場合だけ追加する
-  - BMP: 使う場合は、依存を追加せずに自前でPNGへ変換する(無圧縮BMPを読み、Node.js 標準の `zlib` でPNGに圧縮)。対応自体の要否は【Q18】
+  - 大きな画像: 縮小はしない。2MBを超える画像は警告し、作者が事前に縮小する(macOS 標準の `sips` コマンドで `sips -Z 1920 photo.jpg` など)【Q17】
+  - BMP: 依存を追加せずに自前でPNGへ変換して埋め込む(無圧縮の24 / 32bit BMPを読み、Node.js 標準の `zlib` でPNGに圧縮)【Q18】。圧縮形式のBMPなど読めない形式は警告を出し、そのまま埋め込む
 - 画像が見つからない場合: 警告を出し、「画像なし: img/xxx.png」と書いた枠を表示する。
 - URL指定の画像(`https://...`)は対象外とし、警告を出す。
 
@@ -422,7 +434,39 @@ y = b0*x + b1*x1 + b2*x2 - a1*y1 - a2*y2;
 - info string の先頭が言語名。ビルド時に Shiki(JavaScript正規表現エンジン)でハイライトする。言語指定がない場合はハイライトしない。
 - タイトル: `title="..."` で指定する。Zenn/Qiita式の ```` ```cpp:biquad.cpp ```` も受け付ける【Q19】。
 - 行番号の表示(`showLineNumbers`)と行ハイライト(`{2,4-5}`)はオプション【Q21】。
-- 独自言語のハイライトは `scripts/languages/` に TextMate 文法(`.tmLanguage.json`)を置いて対応する【Q22】。文法はJSONとして読み込む(JSモジュールにしない)。JavaScriptエンジンで変換できない正規表現を含む場合は、ビルド時にエラーになるので文法側を修正する。
+- 言語名に、下表の言語名または別名以外を指定した場合は、警告を出してハイライトせずに表示する。
+
+**ハイライト対象の言語**【Q22】
+
+| 言語 | 言語名(info string に書く名前) | 別名 | 文法の入手元 |
+| --- | --- | --- | --- |
+| C | `c` | — | Shiki 同梱 |
+| C++ | `cpp` | `c++` | Shiki 同梱 |
+| Rust | `rust` | `rs` | Shiki 同梱 |
+| JavaScript | `javascript` | `js`、`cjs`、`mjs` | Shiki 同梱 |
+| TypeScript | `typescript` | `ts`、`cts`、`mts` | Shiki 同梱 |
+| C# | `csharp` | `c#`、`cs` | Shiki 同梱 |
+| Java | `java` | — | Shiki 同梱 |
+| Scala | `scala` | — | Shiki 同梱 |
+| Ruby | `ruby` | `rb` | Shiki 同梱 |
+| Python | `python` | `py` | Shiki 同梱 |
+| Go | `go` | — | Shiki 同梱 |
+| SuperCollider | `supercollider` | `sclang`、`scd` | [supercollider/language-supercollider](https://github.com/supercollider/language-supercollider)(MIT) |
+| FAUST | `faust` | `dsp` | [jpcima/language-faust](https://github.com/jpcima/language-faust)(MIT) |
+| Onsa(自作言語) | `onsa` | `onsalang` | 自作(`scripts/languages/onsa.tmLanguage.json`) |
+
+- 言語名と別名は shiki 4.5.0 の同梱言語の定義で確認した。Shiki 同梱の言語は、上表の11言語だけを読み込む(全言語を読み込まないことで、ビルドを速くする)。
+- SuperCollider と FAUST は Shiki に含まれていない。GitHub のコードハイライト(Linguist)が採用している TextMate 文法を使う。どちらも MIT ライセンスで、元は Atom エディタ用の CSON 形式(2〜3KB)。
+  - 導入時に一度だけ JSON に変換し、`scripts/languages/` にコミットする。変換は手作業かスクリプトで行い、CSON パーサを依存に追加しない。
+  - 入手元の URL・コミット・ライセンス全文を `scripts/languages/LICENSES.md` に記録する(MIT ライセンスの表記義務のため)。
+  - どちらの文法も、キーワード・文字列・コメント・数値・クラス名を色分けする程度の簡易なもの(2014〜2015年頃の作成)。FAUST の文法には、新しい構文(`route`、`soundfile` など)のキーワードが含まれていない。必要に応じてキーワードを追記する。
+  - 文法には Oniguruma 独自の正規表現(アトミックグループ `(?>...)`、POSIX文字クラス `[[:space:]]`、`{,2}` 形式の回数指定)が含まれる。JavaScriptエンジンで変換できるかを導入時に確認し、変換できない箇所は文法側を書き換える。
+- Onsa の文法は、まず簡易版として作成した。
+  - 根拠: [centrevillage/onsalang](https://github.com/centrevillage/onsalang) の dev ブランチ(コミット a17c86e)の言語仕様 `onsa-lang-spec-0.3.md` §2(字句)と、字句解析器 `crates/onsa_syntax/src/token.rs` のキーワード一覧。
+  - 色分けの対象: コメント(`//`、doc コメント `///`、モジュールの doc `//!`)、属性(`@param` など)、文字列(エスケープ、`{n}` の補間、`{{` `}}`)、文字、数値(10進・16進・2進・浮動小数)、キーワード(予約語 `clock` などを含む)、組込み型と `Some` / `None` などの列挙子、型名と定数名(UpperCamel / UPPER_SNAKE)、宣言する関数名・型名、関数の呼び出し(`f~(` と `f!(` の印を含む)、`at sample` などのレート、演算子(`+%`、`+|`、`..<` などを含む)。
+  - shiki 4.5.0 の JavaScript正規表現エンジン(変換できないパターンをエラーにする設定)で、変換エラーなく動くことを確認した。onsalang リポジトリの `examples/voice_host/dsp.onsa` と `std/dsp.onsa` も色分けできた。
+  - 簡易版のため、1文字の定数名(`N` など)は型名と同じ色になる。Onsa の仕様でキーワードや字句が変わったら、文法も合わせて更新する。
+- 文法はJSONとして読み込む(JSモジュールにしない)。JavaScriptエンジンで変換できない正規表現を含む場合は、ビルド時にエラーになるので文法側を修正する。
 - 行は折り返さない。はみ出した場合の扱いは 5.7 を参照。
 
 ### 4.9 列分割【Q02】【Q23】
@@ -471,22 +515,73 @@ y = b0*x + b1*x1 + b2*x2 - a1*y1 - a2*y2;
 
 ### 4.11 コードサンプルページ
 
+実行の対象はコンソール出力・音声出力・WASM(自作言語 Onsa の実行用)の3つ【Q38】。
+
+**例1: JavaScript を表示して、そのまま実行する**
+
 ````markdown
 <!-- page: code -->
 ## サイン波を鳴らす
 
 ```js title="sine.js"
-const ctx = new AudioContext();
-...
+const ctx = slide.audioContext();
+const osc = new OscillatorNode(ctx, { frequency: 440 });
+osc.connect(slide.audioOutput());
+osc.start();
 ```
 ````
 
-- H2 をページタイトル(任意)、最初の `js` / `javascript` コードブロックを実行対象とする。
-- タイトルの下に、短い説明文を1段落まで書ける。
-- 2つ目以降のコードブロックやその他の要素は、警告を出して無視する【Q43】。
+**例2: C++ のコードを表示して、同じ処理を JavaScript(AudioWorklet)で鳴らす。実行用の JavaScript は隠す**
+
+````markdown
+<!-- page: code -->
+## Biquad フィルタ
+
+```cpp title="biquad.cpp"
+float process(float x) {
+  float y = b0*x + b1*x1 + b2*x2 - a1*y1 - a2*y2;
+  x2 = x1; x1 = x; y2 = y1; y1 = y;
+  return y;
+}
+```
+
+```js run assets="worklet/biquad.js"
+const ctx = slide.audioContext();
+await ctx.audioWorklet.addModule(slide.asset("worklet/biquad.js").url());
+const node = new AudioWorkletNode(ctx, "biquad-demo");
+slide.connectPort(node.port);
+node.connect(slide.audioOutput());
+```
+````
+
+- H2 をページタイトル(任意)とする。タイトルの下に、短い説明文を1段落まで書ける。
+- **表示ブロック**: 最初のコードブロック。言語は問わない(`js`、`cpp`、`onsa` など)。画面に表示する。
+- **実行ブロック**: info string に `run` を付けた `js` / `javascript` のコードブロック。画面には表示しない。
+  - `run` 付きのブロックがなく、表示ブロックが `js` / `javascript` なら、表示ブロックをそのまま実行する(例1)。
+  - 実行するブロックがない場合(表示ブロックが `js` 以外で、`run` 付きのブロックもない)は、警告を出してコードを表示するだけにする(Run ボタンを出さない)。
+- **アセット**: 実行ブロックの `assets="..."` に、実行時に使うファイル(AudioWorklet 用の JS など)をスペース区切りで書く。パスはmdファイルからの相対パス。ビルド時に出力HTMLへ埋め込み、実行コードからは `slide.asset()` で読む(→ 6.6)。ファイルがなければエラー。
+- 上記以外のコードブロックやその他の要素は、警告を出して無視する【Q43】。
+- Onsa のコードの実行(WASM)は、Onsa 側の WASM コンパイルがまだできていないため、当面は対応しない【Q52】。Onsa のコードは表示ブロックとして表示できる(ハイライトは 4.8)。
 - 実行仕様は 6章、レイアウトは 7.6 を参照。
 
-### 4.12 予約記法(将来用)
+### 4.12 全面画像ページ【Q24】
+
+製品写真やライブ写真を、スライド全体に大きく表示する。
+
+```markdown
+<!-- page: image, fit: cover -->
+![ライブの様子](img/live.jpg)
+2026.08 下北沢
+```
+
+- 本文の最初の画像を全面に表示する。2枚目以降の画像やその他のブロック要素は、警告を出して無視する。
+- `fit`: 画像の収め方。
+  - `cover`(既定): スライド全体を覆うように拡大し、はみ出した部分を切り取る
+  - `contain`: 画像全体が収まるように縮小し、余白は背景色(`dark` デザインでは黒)で埋める
+- 画像の後に段落を1つ書くと、短いテキストとして画像の左下に重ねて表示する(任意)。
+- 画像のタイトル(`"..."`)は使わない(書いた場合は警告して無視する)。
+
+### 4.13 予約記法(将来用)
 
 - 発表者ノート: `<!-- note: ... -->` を予約し、出力には含めない【Q25】。
 
@@ -561,7 +656,7 @@ const ctx = new AudioContext();
 - ↑ / ← で前のスライド、↓ / → で次のスライド(キーを押し続けると連続で移動)
 - Home / End で先頭 / 末尾
 - TAB でプレゼンテーションモードへ(ブラウザ既定のフォーカス移動は抑止)
-- Enter でもプレゼンテーションモードへ(提案)
+- Enter でもプレゼンテーションモードへ
 
 **縦長画面(スマホの縦持ちなど)**【Q35】: 上にメインペイン、下に一覧ペイン(横スクロール)を配置する。
 
@@ -577,7 +672,7 @@ const ctx = new AudioContext();
 - 先頭ページでの「前へ」と最終ページでの「次へ」は何もしない(ループしない)【Q32】。
 - タッチデバイスで画面上部(高さの15%)をタップすると、右上に閉じるアイコン(×、タップ領域48px以上)を表示する。3秒で自動的に消える。アイコンをタップするとナビゲーションモードに戻る。
 - 画面上部以外のタップは次のページ(マウスクリックと揃える)【Q31】。
-- ページ番号をスライドの右下に小さく表示する(フロントマターで切り替え)【Q33】。
+- ページ番号をスライドの右下に小さく表示する【Q33】。フロントマターの `page_number: false` で非表示にできる。タイトルページには表示しない。ナビゲーションモードのメインペインにも同じく表示する。
 - ブラウザのピンチズームやダブルタップズームは抑止する(`touch-action` で制御)。
 
 ### 5.5 入力操作一覧
@@ -616,6 +711,14 @@ const ctx = new AudioContext();
 - 高橋メソッドページ: 自動でサイズを合わせるため、はみ出さない。
 - 判定はビューア起動時(フォント読み込み完了後)にキャンバス座標で行う。
 
+### 5.8 印刷・PDF【Q50】
+
+- 印刷用の CSS(`@media print`)を用意し、ブラウザの印刷機能の「PDFとして保存」で、1スライド1ページの PDF を作れるようにする(SpeakerDeck や connpass への資料アップロード用)。追加の依存はない。
+- 用紙サイズは `@page { size: 1920px 1080px; margin: 0 }` とし、ナビゲーションの一覧ペインなどビューアの部品は印刷しない。
+- 背景色を印刷するため `print-color-adjust: exact` を指定する。
+- コードサンプルページは、コードの静的な表示とする(実行用 iframe とコンソールは印刷しない)。
+- ナビの警告マーク(はみ出し)は印刷しない。
+
 ---
 
 ## 6. コードサンプルページの実行仕様【Q38】〜【Q43】
@@ -623,23 +726,26 @@ const ctx = new AudioContext();
 ### 6.1 実行環境【Q39】
 
 - サンドボックス化した iframe(`sandbox="allow-scripts"`、`srcdoc`、`allow="autoplay"`)の中で実行する。スライド本体のDOMや状態には影響しない。
-- Web Audio API / Canvas / DOM / `requestAnimationFrame` を使える(Web Worker 方式では Web Audio API が使えないため、iframe 方式を推奨する)。
+- 音声出力を使うため(Q38)、iframe 方式を採用する。Web Worker 方式では Web Audio API が使えない。iframe の中では Web Audio API(AudioWorklet を含む)、WebAssembly、Canvas、DOM、`requestAnimationFrame` を使える。
 - コードは `postMessage` で iframe に渡し、iframe の中で `<script type="module">` 要素を作って実行する(`</script>` を含むコードのエスケープ問題を避けるため)。モジュールとして実行するので、トップレベル `await` も使える。
-- 外部ライブラリの読み込みはできない(オフライン前提)【Q43】。
+- 外部ライブラリの読み込みはできない(オフライン前提)【Q43】。必要なファイルはアセットとして埋め込む(→ 4.11)。
 
 ### 6.2 実行と停止
 
+- 実行用 iframe は、コードサンプルページを表示したときに待機状態で作る(コードはまだ実行しない)。
+- ▶ Run / ■ Stop ボタンは **iframe の中に置く**。ブラウザの自動再生の制限により、音声を開始するには、その iframe の中でのクリックが必要なため。見た目はパネルの一部として描画する。
+
 | 操作 | 動作 |
 | --- | --- |
-| ▶ Run | 新しい iframe を作ってコードを実行する。実行中に押した場合は、停止してから再実行する |
-| ■ Stop | iframe を破棄する。`setInterval`、`requestAnimationFrame`、`AudioContext` などの非同期処理もすべて止まる |
-| Clear | コンソール表示を消去する |
+| ▶ Run | AudioContext を作り、実行ブロックのコードを実行する。実行中に押した場合は、停止してから再実行する |
+| ■ Stop | iframe を破棄し、待機状態の iframe を作り直す。`setInterval`、`requestAnimationFrame`、AudioContext、AudioWorklet などの非同期処理もすべて止まる |
+| Clear | コンソール表示を消去する(コンソール側のボタン) |
 
 - 制約: 同期的な無限ループは、ブラウザによってはページ全体を固まらせる可能性がある(iframe が同じプロセスで動く場合があるため)。
 - スライドを移動すると、実行中のコードを自動で停止する(音が鳴りっぱなしになるのを防ぐ)【Q42】。ナビ⇔プレゼンのモード切り替えでは停止しない。
+- iframe の中をクリックすると、キーボードのフォーカスが iframe に移る。iframe はページ送り・モード切り替えのキー(矢印、Space、PageUp / PageDown、Home / End、Enter、TAB、ESC)を受け取ったら親ページに転送する。iframe の上でのホイールは親ページに届かないので、ページ送りにならない(5.5 の例外と同じ扱い)。
 - サムネイルではコードを静的に表示するだけで、実行環境は作らない。
-- 発表中にコードを編集できるかどうかは【Q40】(推奨案: 表示のみ)。エディタ(CodeMirror 6)を採用する場合は、固定した版を一度だけバンドルして `scripts/runtime/vendor/` にコミットする(→ 2.4.5)。
-- 注意: Safari では、iframe 内で音声を開始するときに制約がかかる可能性がある。実装時に検証する。
+- 発表中のコードの編集はできない(表示のみ)【Q40】。将来エディタ(CodeMirror 6)を採用する場合は、固定した版を一度だけバンドルして `scripts/runtime/vendor/` にコミットする(→ 2.4.5)。
 
 ### 6.3 コンソール
 
@@ -650,6 +756,60 @@ const ctx = new AudioContext();
 - Run のたびに表示をクリアし、「▶ 実行開始」「■ 停止」などのシステムメッセージを表示する。
 - 1000行を超えたら古い行から捨てる。
 - 親ページは `event.source` が実行用 iframe であることを確かめてからメッセージを受け取る。
+- AudioWorklet の中の `console.log` は、ブラウザの仕組み上フックできない。表示したい場合は、AudioWorklet 側から `port.postMessage({ type: "log", level: "log", args: [...] })` の形で送り、実行コードで `slide.connectPort(port)` を呼ぶ(→ 6.6)。
+
+### 6.4 音声出力
+
+- `slide.audioContext()` で AudioContext を得る。Run のクリック(iframe 内のユーザー操作)の直後に作るので、再生できる状態で渡される。Stop とスライドの移動で `close()` される。
+- 出力は `slide.audioOutput()` に接続する。`ctx.destination` の手前に**リミッター**を入れ、フィルタの発振や計算の誤りによる急な大音量から、会場のスピーカーと聴衆の耳を守る【Q54】。`ctx.destination` に直接つなぐこともできるが、リミッターを通らない。
+- リミッターはビューアに内蔵する AudioWorklet で実装する(ブラウザの DynamicsCompressorNode は先読みが短く、瞬間的に 0 dBFS を超えることがあり、NaN を受けると内部状態が壊れて無音のままになることがあるため)。
+
+| 処理(順に適用) | 内容 |
+| --- | --- |
+| 1. NaN / 無限大の除去 | NaN と ±Infinity を 0 に置き換える。検出したら、コンソールに「NaN / Infinity を検出したため 0 に置き換えた」と警告する(1回の実行につき1回) |
+| 2. ピークリミッター | しきい値 -1 dBFS、先読み 5ms、リリース 100ms。しきい値を超える分だけ音量を下げる |
+| 3. ハードクリップ | 最後に ±1.0 の範囲に必ず収める(リミッターの取りこぼし対策) |
+
+- 音量の調整(マスター音量)は持たない。音量はデモのコード側で調整する。
+- 音声の出力中は、パネルに「● 出力中」を表示する。リミッターが 3dB 以上音量を下げているときは「リミッター作動中」を表示する(デモの音量が大きすぎることに気付けるように)。
+- AudioWorklet が使えない環境(6.7 の検証の結果による)では、DynamicsCompressorNode(しきい値 -1 dBFS、ratio 20、knee 0)と WaveShaperNode(±1.0 でのクリップ)で代用する。
+
+### 6.5 WASM
+
+- **Onsa の WASM 実行は当面対応しない**【Q52】。onsalang の WASM コンパイル(M6)がまだできていないため。
+- 一般の WASM は、特別な対応なしに使える。`.wasm` をアセットとして埋め込み、`slide.asset(path).bytes()` で読んで `WebAssembly.instantiate` する(iframe の中でそのまま使える)。
+- 参考: onsalang 側の実装が進んだときに検討する段階案。
+
+| 段階 | 方式 | 前提 |
+| --- | --- | --- |
+| 1 | Onsa のコンパイラで事前にビルドした `.wasm` と AudioWorklet 用の glue JS をスライドのフォルダ(例: `slides/foo/wasm/`)に置き、実行ブロックの `assets` で埋め込む | onsalang の WASM コンパイル(M6)の完成 |
+| 2 | 表示ブロックが `onsa` のとき、生成ツールが `onsa` CLI(`wasm-worklet` ターゲット)を呼んでビルドし、結果を埋め込む。実行ブロックを省略した場合は、標準の再生コードを使う | Onsa の WASM バックエンド(onsalang の M6)の完成 |
+| 3 | Onsa のコンパイラ(`onsa_web`)を出力HTMLに同梱し、発表中に Onsa のコードを編集・コンパイル・再生する | onsalang の M7 の完成。Q40 で編集機能を採用すること |
+
+- AudioWorklet で WASM を動かす場合は、バイト列を `processorOptions` か `port` で AudioWorklet に渡し、その中でインスタンス化する(ブラウザ間の互換性が高い方法)。Base64 で埋め込むため、出力HTMLは WASM の約1.33倍の大きさが増える。
+
+### 6.6 実行コードから使える API
+
+実行コードには、グローバル変数 `slide` を用意する。
+
+| API | 内容 |
+| --- | --- |
+| `slide.audioContext()` | 再生可能な状態の AudioContext を返す(1回の実行につき1つ。2回目以降は同じものを返す) |
+| `slide.audioOutput()` | リミッター(6.4)の入口の AudioNode を返す【Q54】 |
+| `slide.asset(path)` | `assets` で指定したファイルを返す。`.bytes()`(ArrayBuffer)、`.text()`(文字列)、`.url()`(iframe 内で作る Blob URL。`audioWorklet.addModule()` や `import()` に渡せる)を持つ。指定していないパスは例外 |
+| `slide.connectPort(port)` | MessagePort(AudioWorkletNode の `port` など)からの `{ type: "log", level, args }` 形式のメッセージをコンソールに表示する |
+
+### 6.7 技術的な制約と、実装前に検証すること
+
+コードサンプルページの実装(M3)の最初に、次の点を Chrome / Safari / Firefox で検証する。
+
+| # | 制約・確認すること | 問題が出た場合の対応 |
+| --- | --- | --- |
+| 1 | AudioWorklet は安全なコンテキスト(https、localhost、ブラウザによっては `file://`)でしか使えない。`file://` で開いた出力HTMLの、サンドボックス化した srcdoc iframe の中で AudioWorklet を使えるか | sandbox に `allow-same-origin` を加える(分離は弱まるが、作者自身のコードなので許容)。それでも使えないブラウザは、ローカルサーバ(`gen_slide.sh --serve` など)で開く運用にする |
+| 2 | iframe 内で作った Blob URL を `audioWorklet.addModule()` に渡せるか | 同上 |
+| 3 | SharedArrayBuffer は使えない。クロスオリジン分離に HTTP ヘッダー(COOP / COEP)が必要で、`file://` の単一HTMLでは設定できないため。メインスレッドと AudioWorklet の間は MessagePort で値を受け渡す | 仕様上の制約として扱う。Onsa の glue JS を SharedArrayBuffer なしで動く設計にするかは、onsalang 側で検討中【Q53】 |
+| 4 | 自動再生の制限: iframe 内のクリックで AudioContext を開始できるか(特に Safari) | Run の後に「クリックして音声を開始」の表示を出し、もう一度クリックしてもらう |
+| 5 | (WASM 対応時に検証。当面は対象外)AudioWorklet に WASM のバイト列を渡し、その中でインスタンス化できるか | メインスレッドでコンパイルした `WebAssembly.Module` を `port` で渡す |
 
 ---
 
@@ -690,7 +850,7 @@ const ctx = new AudioContext();
 
 ### 7.3 タイトルページ【Q44】
 
-要件で求められているデザイン上のセオリーと、それに基づく提案:
+要件で求められていたデザイン上のセオリーと、それに基づく配置(Q44 で決定):
 
 | セオリー | 内容 | 上端からの位置 |
 | --- | --- | --- |
@@ -698,7 +858,7 @@ const ctx = new AudioContext();
 | 黄金比 | 高さを 1 : 0.618 に分ける線 | 約38% |
 | 三分割法 | 高さを3等分する線 | 約33% |
 
-**提案**: タイトルとサブタイトルを1つのブロックとみなし、ブロックの縦方向の中心を**上端から約42%**(1080pxなら約450px)に置く。視覚的中心と黄金比の間にあたり、安定して見えるうえ、右下の発表者情報との間に十分な余白が取れる。
+**配置**: タイトルとサブタイトルを1つのブロックとみなし、ブロックの縦方向の中心を**上端から約42%**(1080pxなら約450px)に置く。視覚的中心と黄金比の間にあたり、安定して見えるうえ、右下の発表者情報との間に十分な余白が取れる。
 
 ```
 ┌──────────────────────────────────────────────┐
@@ -720,7 +880,7 @@ const ctx = new AudioContext();
 - サブタイトル: タイトルの半分のサイズにして階層の差をはっきりさせる。色はやや薄くする。
 - アクセント線(デザイン依存・任意): タイトルとサブタイトルの間に、幅120px程度の短い線を入れると階層がより明確になる。
 - 発表者・日付: 安全領域の右下に右揃えで配置する。1行目に発表者、2行目に「イベント名 / 日付」。
-- アイコン画像を使う場合は、発表者名の左に表示する(提案)【Q12】。
+- アイコン画像(フロントマターの `icon`)がある場合は、発表者名の左に表示する(高さ64pxの円形)【Q12】。
 - サブタイトルがない場合は、タイトル単体の中心を42%の位置に置く。
 
 ### 7.4 コンテンツページ
@@ -758,19 +918,25 @@ const ctx = new AudioContext();
 ┌──────────────────────────────────────────────────┐
 │ ページタイトル                                     │
 │ 説明文(任意・1段落)                                │
-│ ┌─ sine.js ─────────────────┐ ┌[▶ Run][■ Stop][Clear]┐ │
-│ │ const ctx = new Audio...  │ │ ▶ 実行開始            │ │
-│ │ ...                       │ │ playing 440 Hz       │ │
-│ │                           │ │                      │ │
-│ └───────────────────────────┘ └──────────────────────┘ │
+│ ┌─ voice.onsa ──────────────┐ ┌[▶ Run][■ Stop]  ● 出力中┐ │
+│ │ pub flow voice(...)       │ ├──────────────── [Clear]┤ │
+│ │   saw~(f0) * ...          │ │ ▶ 実行開始              │ │
+│ │                           │ │ playing 440 Hz         │ │
+│ └───────────────────────────┘ └────────────────────────┘ │
 └──────────────────────────────────────────────────┘
   コード 60%                       コンソール 40%
 ```
 
 - 既定は左右分割(コード60%、コンソール40%)。
 - コード領域とコンソール領域は、それぞれ独立して縦スクロールできる(ホイール操作はページ送りより優先)。
-- Canvas などの描画結果を表示する場合は、コンソールの上に出力領域(実行用 iframe そのもの)を表示する【Q38】。
+- コンソールの上の行(▶ Run / ■ Stop と「● 出力中」)は、実行用 iframe で描画する(→ 6.2)。Clear はコンソール側のボタン。
 - ボタンの表記はアイコン + 英語(▶ Run / ■ Stop / Clear)。
+
+### 7.7 全面画像ページ
+
+- 画像は外周余白なしで、スライドキャンバス全体に表示する(`object-fit: cover` / `contain`)。
+- 重ねるテキストは左下(左 96px、下 64px)に、32px・白文字で表示する。読みやすさのため、テキストの背後にだけ半透明の黒(不透明度 0.5 程度)の帯を敷く。
+- ページ番号は、画像の上に同じ半透明の帯付きで表示する。
 
 ---
 
@@ -793,7 +959,8 @@ designs/<name>/
   "name": "Default",
   "description": "白背景・アクセント1色のシンプルなデザイン",
   "highlightTheme": "github-light",
-  "fonts": []
+  "fonts": [],
+  "classes": ["inverse"]
 }
 ```
 
@@ -842,14 +1009,18 @@ designs/<name>/
   <div class="slide__inner"><p class="takahashi__text">…</p></div>
 </section>
 
-<section class="slide slide--code" data-index="3">
+<section class="slide slide--image" data-index="3" data-fit="cover">
+  <img class="image__img" src="…" alt="…">
+  <p class="image__caption">…</p>
+</section>
+
+<section class="slide slide--code" data-index="4">
   <div class="slide__inner">
     <h2 class="slide__heading">…</h2>
     <div class="runner">
       <figure class="figure figure--code runner__code">…</figure>
       <div class="runner__panel">
-        <div class="runner__buttons">…</div>
-        <div class="runner__output"></div>
+        <iframe class="runner__frame" sandbox="allow-scripts" allow="autoplay"></iframe>  <!-- Run / Stop と出力中の表示 -->
         <div class="runner__console"></div>
       </div>
     </div>
@@ -890,17 +1061,21 @@ designs/<name>/
 ### 8.5 初期テンプレート【Q45】
 
 - `default`: 白背景・濃いグレーの文字・アクセント1色。装飾なし。ハイライトテーマは `github-light`。
-- `dark`(提案): 黒背景版。暗い会場や、白背景がまぶしいプロジェクタ向け。
+- `dark`: 黒背景版。暗い会場や、白背景がまぶしいプロジェクタ向け。ハイライトテーマは `github-dark`。
+- アクセントカラーは、両デザインとも仮にオレンジ(`#e8590c`)とする。
 
 ### 8.6 フォント【Q46】
 
-- 推奨案: `default` はOSのシステムフォントを使う(出力HTMLが軽い)。
+- `default` と `dark` はOSのシステムフォントを使う(出力HTMLが軽い)。
 - デザインごとに `fonts/` を置けば埋め込みもできる(どのPCでも同じ見た目になる)。日本語フォントは容量が大きいため、使っている文字だけのサブセットにして埋め込む。
 
 ### 8.7 デザインの指定
 
 - スライドファイル単位で、フロントマターの `design` で指定する(CLIの `--design` が優先)。
-- ページ単位のバリエーション(例: 特定のページだけ背景を反転する `class: inverse`)は【Q47】。
+- ページ単位のバリエーションは、ディレクティブの `class` で指定する(例: `<!-- page: content, class: inverse -->`)【Q47】。
+  - 指定した値は `<section>` に `slide--class-<値>` のクラスとして付き、デザイン側の CSS で見た目を変える。
+  - デザインは使える値を `design.json` の `classes` に列挙する。列挙されていない値は警告する。
+  - `default` と `dark` は `inverse`(背景と文字の色を反転)を用意する。
 
 ---
 
@@ -927,18 +1102,23 @@ designs/<name>/
 - 行内(inline)での画像・複数行コード片の挿入
 - 多言語対応
 
-本書で追加したもの(質問票で採用が決まれば対象にする):
+本書で追加したもの:
 
-- 発表者ビュー・発表者ノートの表示【Q25】
-- 数式・図の描画【Q14】
-- PDF出力【Q50】
-- 動画・音声の埋め込み【Q51】
+- 発表者ビュー・発表者ノートの表示(ノートの記法だけ予約する)【Q25】
+- 図(Mermaid など)の描画【Q14】
+- CLI からの PDF 生成(PDF はブラウザの印刷機能で作る。→ 5.8)【Q50】
+- 動画・音声ファイルの埋め込み【Q51】
+- Onsa のコードの実行(WASM。onsalang の WASM コンパイルの完成後に検討する)【Q52】
+- 縦横比 4:3(後から追加できる設計にしておく)【Q36】
+- 画像の自動縮小【Q17】
+- 発表中のコードの編集【Q40】
+- プレゼン中の画面のブラックアウト(B / . キー)【Q28】
 - URL指定の画像
 - GUIでのスライド編集
 
 ---
 
-## 11. 要件定義からの解釈・補足(要確認)
+## 11. 要件定義からの解釈・補足(確認済み)
 
 | # | 要件定義の記述 | 本書での解釈 | 質問 |
 | --- | --- | --- | --- |
@@ -947,7 +1127,7 @@ designs/<name>/
 | 3 | 「アニメーションの対応」はサポート外 | ページ切り替えのトランジションも付けない | Q03 |
 | 4 | 「全画面表示」 | Fullscreen API による画面全体の表示。使えない環境ではウィンドウ内いっぱいの表示 | Q26 |
 | 5 | タッチデバイスの長押し(1秒)でプレゼンへ | 1秒経過後、指を離した時点で移る(ブラウザの制約) | Q27 |
-| 6 | 初期表示は先頭スライドを選択 | URLハッシュがあればそのスライドを選択する(提案) | Q34 |
+| 6 | 初期表示は先頭スライドを選択 | URLハッシュがあればそのスライドを選択する | Q34 |
 | 7 | プレゼンテーションモードの操作(キーボードの記載なし) | 矢印キー・Space・PageUp/PageDown などを追加する | Q28 |
 
 ---
@@ -958,7 +1138,8 @@ designs/<name>/
 | --- | --- |
 | M0 | 開発環境の準備: Node.js / npm の版の確認、`.npmrc`・`package.json`(完全一致の固定)・`tsconfig.json` の作成、依存の導入と `package-lock.json` のコミット(→ 2.4) |
 | M1 | CLIの骨格、フロントマター、スライド分割、タイトルページ・コンテンツページ(テキストのみ)、`default` デザイン、ナビ/プレゼンの基本操作(マウス・キーボード) |
-| M2 | 画像の埋め込み、コード片のハイライト、列分割、高橋メソッド(サイズの自動調整)、はみ出しの警告 |
-| M3 | コードサンプルページ(実行環境・コンソール) |
+| M2 | 画像の埋め込み(BMP の PNG 変換を含む)、コード片のハイライト(SuperCollider・FAUST の文法の変換を含む)、列分割、高橋メソッド(サイズの自動調整)、全面画像ページ、数式、はみ出しの警告 |
+| M3 | コードサンプルページ。最初に 6.7 の技術検証(`file://` + サンドボックス iframe での AudioWorklet・自動再生)を行い、その結果で実行環境の方式を確定してから、実行環境・コンソール・音声出力(リミッターを含む)・アセット埋め込みを実装する |
 | M4 | タッチ操作・長押し・全画面化のブラウザごとの調整、URLハッシュ、watchモード、雛形作成コマンド |
-| M5 | 質問票で採用が決まった提案機能 |
+| M5 | `dark` デザイン、ページ単位のデザイン変更(`class`)、印刷用 CSS(PDF)、ページ番号 |
+| 後続 | Onsa のコードの実行(6.5 の段階案。onsalang の WASM コンパイルの完成後に検討) |

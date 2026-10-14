@@ -1,0 +1,232 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Onsa",
+  "scopeName": "source.onsa",
+  "fileTypes": ["onsa"],
+  "comment": "Simple grammar for Onsa (https://github.com/centrevillage/onsalang), based on onsa-lang-spec-0.3.md §2 and crates/onsa_syntax/src/token.rs.",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#attributes" },
+    { "include": "#strings" },
+    { "include": "#chars" },
+    { "include": "#numbers" },
+    { "include": "#declarations" },
+    { "include": "#rates" },
+    { "include": "#keywords" },
+    { "include": "#types" },
+    { "include": "#calls" },
+    { "include": "#operators" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.documentation.module.onsa",
+          "match": "//!.*$"
+        },
+        {
+          "name": "comment.line.documentation.onsa",
+          "match": "///(?!/).*$"
+        },
+        {
+          "name": "comment.line.double-slash.onsa",
+          "match": "//.*$"
+        },
+        {
+          "comment": "Not valid Onsa (E0020/E0002), shown as a comment so that the rest of the code is not misread.",
+          "name": "comment.block.onsa",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "attributes": {
+      "patterns": [
+        {
+          "name": "entity.other.attribute-name.onsa",
+          "match": "@[A-Za-z_][A-Za-z0-9_]*"
+        }
+      ]
+    },
+    "escapes": {
+      "patterns": [
+        {
+          "name": "constant.character.escape.onsa",
+          "match": "\\\\(?:[ntr0\\\\\"']|u\\{[0-9A-Fa-f]{1,6}\\})"
+        },
+        {
+          "name": "invalid.illegal.escape.onsa",
+          "match": "\\\\."
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.onsa",
+          "begin": "\"",
+          "end": "\"|$",
+          "patterns": [
+            { "include": "#escapes" },
+            {
+              "name": "constant.character.escape.brace.onsa",
+              "match": "\\{\\{|\\}\\}"
+            },
+            {
+              "name": "meta.interpolation.onsa",
+              "match": "(\\{)([A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z0-9_]+)*)(\\})",
+              "captures": {
+                "1": { "name": "punctuation.section.interpolation.begin.onsa" },
+                "2": { "name": "variable.other.interpolation.onsa" },
+                "3": { "name": "punctuation.section.interpolation.end.onsa" }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "chars": {
+      "patterns": [
+        {
+          "name": "string.quoted.single.onsa",
+          "match": "'(?:\\\\(?:[ntr0\\\\\"']|u\\{[0-9A-Fa-f]{1,6}\\})|[^'\\\\])'"
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.hex.onsa",
+          "match": "\\b0[xX][0-9A-Fa-f_]+\\b"
+        },
+        {
+          "name": "constant.numeric.binary.onsa",
+          "match": "\\b0[bB][01_]+\\b"
+        },
+        {
+          "name": "constant.numeric.float.onsa",
+          "match": "\\b[0-9][0-9_]*(?:\\.[0-9][0-9_]*(?:[eE][+-]?[0-9][0-9_]*)?|[eE][+-]?[0-9][0-9_]*)\\b"
+        },
+        {
+          "name": "constant.numeric.integer.onsa",
+          "match": "\\b[0-9][0-9_]*\\b"
+        }
+      ]
+    },
+    "declarations": {
+      "patterns": [
+        {
+          "comment": "fn / flow and the name they declare",
+          "match": "\\b(fn|flow)\\s+([A-Za-z_][A-Za-z0-9_]*)",
+          "captures": {
+            "1": { "name": "storage.type.function.onsa" },
+            "2": { "name": "entity.name.function.onsa" }
+          }
+        },
+        {
+          "comment": "struct / enum / trait / effect / handler / type and the name they declare",
+          "match": "\\b(struct|enum|trait|effect|handler|type)\\s+([A-Za-z_][A-Za-z0-9_]*)",
+          "captures": {
+            "1": { "name": "storage.type.onsa" },
+            "2": { "name": "entity.name.type.onsa" }
+          }
+        }
+      ]
+    },
+    "rates": {
+      "patterns": [
+        {
+          "comment": "the clock of an input, an output or an expression (§11.3): `x: F32 at block`",
+          "match": "\\b(at)\\s+([a-z_][a-z0-9_]*)",
+          "captures": {
+            "1": { "name": "keyword.other.at.onsa" },
+            "2": { "name": "support.constant.rate.onsa" }
+          }
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.onsa",
+          "match": "\\b(if|else|match|for|in|while|break|continue|return|handle|with)\\b"
+        },
+        {
+          "name": "storage.type.onsa",
+          "match": "\\b(fn|rt|flow|par|struct|enum|trait|impl|effect|handler|extern|target|test|const|type|let|var)\\b"
+        },
+        {
+          "name": "storage.modifier.onsa",
+          "match": "\\b(pub|priv|unsafe|blocking|uses|inout|move)\\b"
+        },
+        {
+          "name": "keyword.other.onsa",
+          "match": "\\b(use|as|at|assert)\\b"
+        },
+        {
+          "name": "constant.language.boolean.onsa",
+          "match": "\\b(true|false)\\b"
+        },
+        {
+          "name": "variable.language.self.onsa",
+          "match": "\\b(self|Self)\\b"
+        },
+        {
+          "comment": "reserved words of this version (E0200)",
+          "name": "keyword.other.reserved.onsa",
+          "match": "\\b(clock|when|reset_if|ser)\\b"
+        }
+      ]
+    },
+    "types": {
+      "patterns": [
+        {
+          "name": "support.type.builtin.onsa",
+          "match": "\\b(I8|I16|I32|I64|U8|U16|U32|U64|F32|F64|Bool|Char|Str|Bytes|Array|Map|Set|Buf|Span|Option|Result|Ptr|CSize)\\b"
+        },
+        {
+          "name": "support.constant.variant.onsa",
+          "match": "\\b(None|Some|Ok|Err)\\b"
+        },
+        {
+          "comment": "UPPER_SNAKE: constants",
+          "name": "constant.other.onsa",
+          "match": "\\b[A-Z][A-Z0-9]*_[A-Z0-9_]*\\b|\\b[A-Z][A-Z0-9]+\\b"
+        },
+        {
+          "comment": "UpperCamel: types and enum variants",
+          "name": "entity.name.type.onsa",
+          "match": "\\b[A-Z][A-Za-z0-9]*\\b"
+        }
+      ]
+    },
+    "calls": {
+      "patterns": [
+        {
+          "comment": "calls, flow calls `f~(` and receiver-changing calls `f!(` (§2.6)",
+          "match": "\\b([a-z_][A-Za-z0-9_]*)\\s*([~!]?)(?=\\()",
+          "captures": {
+            "1": { "name": "entity.name.function.call.onsa" },
+            "2": { "name": "keyword.operator.call-mark.onsa" }
+          }
+        }
+      ]
+    },
+    "operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.range.onsa",
+          "match": "\\.\\.[<=]"
+        },
+        {
+          "name": "keyword.operator.arrow.onsa",
+          "match": "->|=>"
+        },
+        {
+          "name": "keyword.operator.onsa",
+          "match": "[+\\-*][%|]|==|!=|<=|>=|&&|\\|\\||<<|>>|[+\\-*/%<>=!&|^~?]"
+        }
+      ]
+    }
+  }
+}
