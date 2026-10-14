@@ -50,9 +50,12 @@ body {
   top: 0;
 }
 
-/* Only the current slide is rendered; is-measuring is set briefly while the viewer measures. */
-.deck > .slide:not(.is-current):not(.is-measuring) {
-  display: none !important;
+/* Only the current slide is rendered; is-measuring is set briefly while the viewer measures.
+   (Printing renders every slide, see the end of this file.) */
+@media not print {
+  .deck > .slide:not(.is-current):not(.is-measuring) {
+    display: none !important;
+  }
 }
 
 /* Takahashi fitting: measure the natural size of the text (viewer.js fitTakahashi). */
@@ -102,6 +105,7 @@ iframe.runner__frame {
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
 }
 
@@ -244,6 +248,34 @@ iframe.runner__frame {
   animation: viewer-press 1s linear forwards;
 }
 
+/* Touch long press held for 1 s: presentation starts when the finger is lifted (Q27). */
+.viewer__press.is-armed .viewer__press-bar {
+  animation: none;
+  stroke-dashoffset: 0;
+  stroke: #2f9e44;
+}
+
+.viewer__press-label {
+  position: absolute;
+  left: 50%;
+  bottom: 100%;
+  display: none;
+  margin-bottom: 8px;
+  padding: 6px 12px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.78);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.3;
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+
+.viewer__press.is-armed .viewer__press-label {
+  display: block;
+}
+
 @keyframes viewer-press {
   to {
     stroke-dashoffset: 0;
@@ -308,7 +340,102 @@ iframe.runner__frame {
   visibility: hidden;
 }
 
+/* Close icon (touch, 5.4): top right, tap target 56px, shown for 3 s after a tap at the top. */
+.viewer__close {
+  position: absolute;
+  z-index: 4;
+  top: max(8px, env(safe-area-inset-top));
+  right: max(8px, env(safe-area-inset-right));
+  display: none;
+  width: 56px;
+  height: 56px;
+  margin: 0;
+  padding: 0;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font: 400 36px/1 system-ui, -apple-system, sans-serif;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.viewer--present.viewer--close-visible .viewer__close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .viewer--cursor-hidden,
 .viewer--cursor-hidden * {
   cursor: none !important;
+}
+
+/* ---- Print / PDF (5.8, Q50): one slide per 1920x1080 page, no viewer UI ---- */
+
+@page {
+  size: 1920px 1080px;
+  margin: 0;
+}
+
+@media print {
+  html,
+  body {
+    width: auto !important;
+    height: auto !important;
+    overflow: visible !important;
+    background: none !important;
+  }
+
+  .viewer,
+  .viewer__main,
+  .viewer__stage {
+    position: static !important;
+    display: block !important;
+    width: auto !important;
+    height: auto !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: none !important;
+  }
+
+  .viewer__list,
+  .viewer__press,
+  .viewer__close,
+  .viewer__thumb-warn {
+    display: none !important;
+  }
+
+  .deck {
+    position: static !important;
+    width: 1920px !important;
+    height: auto !important;
+    transform: none !important;
+  }
+
+  .deck > .slide {
+    position: relative !important;
+    display: block !important;
+    break-after: page;
+    break-inside: avoid;
+  }
+
+  .deck > .slide:last-child {
+    break-after: auto;
+  }
+
+  .slide,
+  .slide * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Code sample pages: the code only, no iframe (Run / Stop) and no console. */
+  .slide .runner__panel {
+    display: none !important;
+  }
+
+  .slide .runner__code > pre {
+    overflow: hidden !important;
+  }
 }

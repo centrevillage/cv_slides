@@ -22,7 +22,14 @@ import {
   splitBlocks,
   type Block,
 } from './markdown.ts';
-import { ImageEmbedder, loadRunAsset, type ReadFile, type RunAsset, type RunAssetResult } from './assets.ts';
+import {
+  ImageEmbedder,
+  loadRunAsset,
+  readFileOrNull,
+  type ReadFile,
+  type RunAsset,
+  type RunAssetResult,
+} from './assets.ts';
 import { parseFenceInfo, sharedCodeHighlighter, type CodeHighlighter } from './highlight.ts';
 
 export interface Design {
@@ -65,6 +72,13 @@ export interface BuildResult {
   html: string | null;
   reporter: Reporter;
   slideCount: number;
+  /**
+   * Absolute paths of the local files the build tried to read (images, the icon, code page
+   * assets), including missing ones; sorted. Used by --watch.
+   */
+  dependencies: string[];
+  /** The design name that was used (CLI > front matter > default), even when it failed to load. */
+  designName: string;
 }
 
 type RenderedType = 'title' | 'content' | 'takahashi' | 'code' | 'image';
@@ -79,7 +93,8 @@ interface Page {
   data?: Record<string, string>;
 }
 
-const DESIGN_NAME = /^[A-Za-z0-9_-]+$/;
+/** Valid design directory names. */
+export const DESIGN_NAME = /^[A-Za-z0-9_-]+$/;
 
 // ---------------------------------------------------------------------------
 // Escaping
@@ -572,8 +587,13 @@ export async function buildDeck(sourceText: string, opts: BuildOptions): Promise
     );
   }
   const baseDir = opts.baseDir ?? process.cwd();
-  const readFile = opts.readFile ? { readFile: opts.readFile } : {};
-  const embedder = new ImageEmbedder({ baseDir, ...readFile });
+  const dependencies = new Set<string>();
+  const baseRead = opts.readFile ?? readFileOrNull;
+  const readFile: ReadFile = (absPath) => {
+    dependencies.add(absPath);
+    return baseRead(absPath);
+  };
+  const embedder = new ImageEmbedder({ baseDir, readFile });
   const ctx: Context = {
     md: createMarkdown(highlighter),
     reporter,
@@ -581,7 +601,7 @@ export async function buildDeck(sourceText: string, opts: BuildOptions): Promise
     theme,
     embedder,
     icon: null,
-    loadAsset: (ref) => loadRunAsset(ref, { baseDir, ...readFile }),
+    loadAsset: (ref) => loadRunAsset(ref, { baseDir, readFile }),
   };
   const showsMeta = autoTitle || slides[0]?.directive.page === 'title';
   if (fm.icon !== undefined && fm.icon !== '' && showsMeta) {
@@ -608,8 +628,9 @@ export async function buildDeck(sourceText: string, opts: BuildOptions): Promise
   }
   if (pages.length === 0) reporter.error('スライドが1枚もありません');
 
+  const tracked = { dependencies: [...dependencies].sort(), designName };
   if (reporter.errorCount > 0 || !design) {
-    return { html: null, reporter, slideCount: pages.length };
+    return { html: null, reporter, slideCount: pages.length, ...tracked };
   }
 
   const title = fm.title || opts.baseName;
@@ -635,5 +656,5 @@ export async function buildDeck(sourceText: string, opts: BuildOptions): Promise
     '</html>',
     '',
   ].join('\n');
-  return { html, reporter, slideCount: pages.length };
+  return { html, reporter, slideCount: pages.length, ...tracked };
 }

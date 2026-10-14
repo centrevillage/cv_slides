@@ -10,6 +10,13 @@
   var TAKAHASHI_MAX_DEFAULT = 360;
   var WHEEL_LINE_PX = 40;
   var WHEEL_PAGE_PX = 800;
+  // Touch (5.3, 5.4, Q27, Q31).
+  var FLICK_MIN_PX = 50;
+  var FLICK_MAX_MS = 600;
+  var TAP_SLOP_PX = 10;
+  var TAP_MAX_MS = 600;
+  var TOP_AREA_RATIO = 0.15;
+  var CLOSE_ICON_MS = 3000;
 
   // Clicks on these act on the element itself instead of turning the page (5.4, 5.5).
   var NO_CLICK_TURN =
@@ -162,6 +169,30 @@
     return { feed: feed, reset: reset };
   }
 
+  // Presentation-mode touch, classified when the finger is lifted (5.4, Q31). dx/dy: movement
+  // from the touch start, dt: duration in ms, startY: start position from the top of the screen,
+  // height: screen height. Returns "next" / "prev" (flick: left or up = next, right or down =
+  // previous), "tap", "top-tap" (start in the top 15%: show the close icon) or null.
+  function classifyTouch(dx, dy, dt, startY, height) {
+    var ax = Math.abs(dx);
+    var ay = Math.abs(dy);
+    if (dt <= FLICK_MAX_MS && Math.max(ax, ay) >= FLICK_MIN_PX) {
+      if (ax >= ay) return dx < 0 ? "next" : "prev";
+      return dy < 0 ? "next" : "prev";
+    }
+    if (ax < TAP_SLOP_PX && ay < TAP_SLOP_PX && dt <= TAP_MAX_MS) {
+      return startY < height * TOP_AREA_RATIO ? "top-tap" : "tap";
+    }
+    return null;
+  }
+
+  // Long press on the main pane (5.3): "cancel" once the pointer moved 10px or more, "armed"
+  // after 1 s (mouse: start now; touch: start when the finger is lifted, Q27), else "pending".
+  function pressPhase(elapsed, dx, dy) {
+    if (dx * dx + dy * dy >= LONG_PRESS_SLOP_PX * LONG_PRESS_SLOP_PX) return "cancel";
+    return elapsed >= LONG_PRESS_MS ? "armed" : "pending";
+  }
+
   // Maps KeyboardEvent.key to an action for the given mode (5.3, 5.5).
   function keyAction(mode, key) {
     switch (key) {
@@ -209,6 +240,8 @@
     mergeOverflow: mergeOverflow,
     normalizeWheelDelta: normalizeWheelDelta,
     createWheelGesture: createWheelGesture,
+    classifyTouch: classifyTouch,
+    pressPhase: pressPhase,
     keyAction: keyAction
   };
 
@@ -310,7 +343,9 @@
     var state = { index: -1, mode: "nav" };
     var suppressClick = false;
     var lastPointerType = "mouse";
-    var pressState = null;
+    var pressState = null; // long press on the main pane (navigation mode)
+    var touchState = null; // touch gesture in presentation mode
+    var closeTimer = 0;
     var cursorTimer = 0;
     var lastScreenX = null;
     var lastScreenY = null;
@@ -327,6 +362,7 @@
     var stage = el("div", "viewer__stage");
     var list = el("div", "viewer__list");
     var press = createPressIndicator();
+    var close = createCloseButton();
     list.setAttribute("role", "listbox");
     list.setAttribute("aria-label", "スライド一覧");
     // Let designs scoped by the deck's design class also apply to thumbnail clones.
@@ -337,6 +373,7 @@
     stage.appendChild(deck);
     main.appendChild(stage);
     main.appendChild(press);
+    main.appendChild(close);
     // The list comes after the main pane in DOM order so getElementById() finds the original
     // slide content before any (id-preserving) thumbnail clone.
     root.appendChild(main);
@@ -455,7 +492,20 @@
         svg.appendChild(circle);
       });
       wrap.appendChild(svg);
+      var label = el("span", "viewer__press-label");
+      label.textContent = "指を離すと開始";
+      wrap.appendChild(label);
       return wrap;
+    }
+
+    // Close icon for touch devices (5.4): shown for 3 s after a tap at the top of the screen.
+    function createCloseButton() {
+      var button = el("button", "viewer__close");
+      button.type = "button";
+      button.tabIndex = -1;
+      button.setAttribute("aria-label", "ナビゲーションモードに戻る");
+      button.textContent = "\u00d7";
+      return button;
     }
 
     /* --- state --- */
@@ -510,6 +560,8 @@
 
     function exitPresentation() {
       if (state.mode !== "present") return;
+      touchState = null;
+      hideCloseIcon();
       setMode("nav");
       clearTimeout(cursorTimer);
       root.classList.remove("viewer--cursor-hidden");
@@ -736,6 +788,14 @@
       main.addEventListener("contextmenu", function (e) {
         if (pressState || lastPointerType !== "mouse") e.preventDefault();
       });
+      close.addEventListener("click", function (e) {
+        e.preventDefault();
+        exitPresentation();
+      });
+      // Safari's own pinch gesture events (touch-action covers the other browsers).
+      document.addEventListener("gesturestart", function (e) {
+        if (state.mode === "present") e.preventDefault();
+      });
       main.addEventListener("dragstart", function (e) {
         e.preventDefault();
       });
@@ -785,29 +845,47 @@
       }
     }
 
+    // Touch and pen are handled alike ("touch" below means any pointer that is not a mouse).
     function onMainPointerDown(e) {
       suppressClick = false;
       lastPointerType = e.pointerType || "mouse";
+      var touch = lastPointerType !== "mouse";
+      if (state.mode === "present") {
+        if (touch) startTouch(e);
+        return;
+      }
+      if (!e.isPrimary) {
+        cancelLongPress(); // a second finger (pinch) is not a long press
+        return;
+      }
       if (state.mode !== "nav" || e.button !== 0) return;
-      // Touch long press (start on release, 5.3/Q27) belongs to the touch input block.
-      if (lastPointerType !== "mouse") return;
       if (matchesClosest(e.target, NO_CLICK_TURN)) return;
-      startLongPress(e);
+      startLongPress(e, touch);
     }
 
-    function startLongPress(e) {
+    // Mouse: presentation starts after 1 s. Touch: after 1 s the indicator says "指を離すと開始"
+    // and presentation starts on release, the user activation the Fullscreen API needs (Q27).
+    function startLongPress(e, touch) {
       cancelLongPress();
       var r = main.getBoundingClientRect();
+      var y = e.clientY - r.top;
       press.style.left = e.clientX - r.left + "px";
-      press.style.top = e.clientY - r.top + "px";
-      press.classList.remove("is-active");
+      // Above the finger, so that it stays visible.
+      press.style.top = (touch ? Math.max(48, y - 96) : y) + "px";
+      press.classList.remove("is-active", "is-armed");
       void press.offsetWidth; // restart the progress animation
       press.classList.add("is-active");
       pressState = {
         id: e.pointerId,
         x: e.clientX,
         y: e.clientY,
+        t: e.timeStamp,
+        touch: touch,
         timer: setTimeout(function () {
+          if (touch) {
+            press.classList.add("is-armed");
+            return;
+          }
           pressState = null;
           press.classList.remove("is-active");
           suppressClick = true; // the release that follows must not turn the page
@@ -820,14 +898,64 @@
       if (!pressState) return;
       clearTimeout(pressState.timer);
       pressState = null;
-      press.classList.remove("is-active");
+      press.classList.remove("is-active", "is-armed");
+    }
+
+    // pointerup / pointercancel of the long-press pointer.
+    function endLongPress(e) {
+      var ps = pressState;
+      var phase =
+        ps.touch && e.type === "pointerup" ? pressPhase(e.timeStamp - ps.t, e.clientX - ps.x, e.clientY - ps.y) : "cancel";
+      cancelLongPress();
+      if (phase !== "armed") return;
+      suppressClick = true;
+      enterPresentation(); // synchronously inside pointerup (user activation)
+    }
+
+    function startTouch(e) {
+      touchState = null;
+      // A second finger is not a flick or a tap; touches on links, buttons and the code runner
+      // act on the element itself (5.5).
+      if (!e.isPrimary || matchesClosest(e.target, NO_CLICK_TURN)) return;
+      var r = main.getBoundingClientRect();
+      touchState = {
+        id: e.pointerId,
+        x: e.clientX,
+        y: e.clientY,
+        t: e.timeStamp,
+        top: e.clientY - r.top,
+        height: r.height
+      };
+    }
+
+    function endTouch(e) {
+      var ts = touchState;
+      touchState = null;
+      if (e.type !== "pointerup" || state.mode !== "present") return;
+      // The click a tap produces never turns the page by itself: the gesture decides.
+      suppressClick = true;
+      var action = classifyTouch(e.clientX - ts.x, e.clientY - ts.y, e.timeStamp - ts.t, ts.top, ts.height);
+      if (action === "next" || action === "tap") next();
+      else if (action === "prev") prev();
+      else if (action === "top-tap") showCloseIcon();
+    }
+
+    function showCloseIcon() {
+      clearTimeout(closeTimer);
+      root.classList.add("viewer--close-visible");
+      closeTimer = setTimeout(hideCloseIcon, CLOSE_ICON_MS);
+    }
+
+    function hideCloseIcon() {
+      clearTimeout(closeTimer);
+      root.classList.remove("viewer--close-visible");
     }
 
     function onPointerMove(e) {
       if (pressState && e.pointerId === pressState.id) {
         var dx = e.clientX - pressState.x;
         var dy = e.clientY - pressState.y;
-        if (dx * dx + dy * dy >= LONG_PRESS_SLOP_PX * LONG_PRESS_SLOP_PX) cancelLongPress();
+        if (pressPhase(0, dx, dy) === "cancel") cancelLongPress();
       }
       if (e.pointerType === "mouse") {
         // Browsers send synthetic moves after layout changes; only real movement counts.
@@ -839,7 +967,8 @@
     }
 
     function onPointerEnd(e) {
-      if (pressState && e.pointerId === pressState.id) cancelLongPress();
+      if (pressState && e.pointerId === pressState.id) endLongPress(e);
+      if (touchState && e.pointerId === touchState.id) endTouch(e);
     }
 
     function onMainClick(e) {
@@ -855,6 +984,9 @@
 
     function onMainDblClick(e) {
       if (state.mode !== "nav" || matchesClosest(e.target, NO_CLICK_TURN)) return;
+      // Mouse only: browsers also report two taps as dblclick, even when the second touch was a
+      // cancelled long press. Touch starts presentation with the long press (5.3).
+      if (lastPointerType !== "mouse") return;
       var sel = window.getSelection && window.getSelection();
       if (sel && sel.removeAllRanges) sel.removeAllRanges();
       enterPresentation();

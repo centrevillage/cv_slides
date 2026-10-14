@@ -1,0 +1,785 @@
+/* cv_slides design "dark": black background, light text, one accent color, no decoration
+   (7.1, 8.5). Same layout and typography as "default"; only the colors differ. Self-contained:
+   it does not import the default design.
+   Everything here lives inside the 1920x1080 slide canvas; never change the .slide size.
+   Selectors start at .slide (no #deck ancestor) so thumbnail clones render identically. */
+
+.slide {
+  --color-bg: #000000;
+  --color-fg: #f0f0f0;
+  --color-muted: #a3a3a3;
+  --color-accent: #e8590c;
+  --color-code-bg: #262626;
+
+  --font-sans: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", "Meiryo", sans-serif;
+  --font-mono: "SF Mono", "Menlo", "Consolas", "Noto Sans Mono", monospace;
+
+  --margin-x: 96px;
+  --margin-top: 80px;
+  --margin-bottom: 64px;
+
+  --size-title: 96px;
+  --size-subtitle: 48px;
+  --size-heading: 60px;
+  --size-h3: 44px;
+  --size-body: 40px;
+  --size-code: 30px;
+  --size-caption: 26px;
+  --takahashi-max: 360px;
+
+  --title-center-y: 42%;
+
+  /* Additional sizes from 7.2 */
+  --size-author: 32px;
+  --size-meta: 28px;
+  --size-page-number: 24px;
+  --size-image-caption: 32px;
+
+  /* Code blocks keep a dark panel, slightly lighter than the slide background, on every page,
+     including inverse pages (do not invert code: the highlight theme github-dark is made for a
+     dark background). */
+  --color-code-block-bg: #1c1c1c;
+  --color-code-block-fg: #e1e4e8;
+  --color-code-block-muted: #a3a3a3;
+
+  /* Full-screen image page (7.7): letterbox (fit: contain) is black (4.12). Then the band
+     behind overlaid text. */
+  --color-image-bg: #000000;
+  --color-overlay-bg: rgba(0, 0, 0, 0.5);
+  --color-overlay-fg: #ffffff;
+
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+  font-size: var(--size-body);
+  font-weight: 400;
+  line-height: 1.6;
+  text-align: left;
+  font-kerning: normal;
+  color-scheme: dark;
+}
+
+/* Page variant: inverse (8.7). A light page. Code blocks keep their dark panel
+   (--color-code-block-*), so highlighted code is never inverted. */
+.slide.slide--class-inverse {
+  --color-bg: #ffffff;
+  --color-fg: #1f1f1f;
+  --color-muted: #707070;
+  --color-code-bg: #ededed;
+  color-scheme: light;
+}
+
+/* ---- Common ---- */
+
+.slide__inner {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  padding: var(--margin-top) var(--margin-x) var(--margin-bottom);
+}
+
+/* Zero-specificity reset so class rules below always win. */
+:where(.slide) :where(h1, h2, h3, h4, h5, h6, p, figure, blockquote, pre) {
+  margin: 0;
+}
+
+/* Japanese headings: balanced line lengths, break at phrase boundaries (Chromium only). */
+.title__main,
+.title__sub,
+.slide__heading,
+.slide__body h3 {
+  text-wrap: balance;
+  word-break: auto-phrase;
+}
+
+/* Emphasis uses weight and the accent color only; no italics (7.1). */
+.slide em {
+  font-style: normal;
+  font-weight: 700;
+}
+
+.slide strong {
+  font-weight: 700;
+  color: var(--color-accent);
+}
+
+.slide del,
+.slide s {
+  color: var(--color-muted);
+}
+
+.slide a {
+  color: var(--color-accent);
+  text-decoration: underline;
+  text-decoration-thickness: 0.06em;
+  text-underline-offset: 0.15em;
+}
+
+.slide code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+}
+
+.slide :not(pre) > code {
+  padding: 0.08em 0.3em;
+  border-radius: 0.15em;
+  background: var(--color-code-bg);
+}
+
+.slide img {
+  max-width: 100%;
+}
+
+.slide pre {
+  padding: 24px 32px;
+  overflow: hidden;
+  background: var(--color-code-bg);
+  font-family: var(--font-mono);
+  font-size: var(--size-code);
+  line-height: 1.5;
+  white-space: pre;
+  tab-size: 4;
+}
+
+.slide pre code {
+  font-size: inherit;
+}
+
+/* ---- Title page (7.3): title block centered at 42% from the top, meta bottom-right ---- */
+
+/* The flex box spans 0 .. 2 * 42% of the canvas, so its vertical center is at 42%. */
+.slide--title .slide__inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: calc(var(--title-center-y) * 2);
+  padding: 0 var(--margin-x);
+  text-align: center;
+}
+
+.title__main {
+  max-width: 85%;
+  font-size: var(--size-title);
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.title__sub {
+  position: relative;
+  max-width: 85%;
+  margin: calc(var(--size-title) * 0.5) 0 0;
+  font-size: var(--size-subtitle);
+  font-weight: 400;
+  line-height: 1.4;
+  color: color-mix(in srgb, var(--color-fg) 72%, var(--color-bg));
+}
+
+/* Short accent line in the gap between title and subtitle; does not affect layout. */
+.title__main + .title__sub::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: calc(var(--size-title) * -0.25 - 3px);
+  width: 120px;
+  height: 6px;
+  margin-left: -60px;
+  background: var(--color-accent);
+}
+
+/* Positioned against .slide (slide__inner is not positioned). Line 1: icon + author,
+   line 2: "event / date". */
+.title__meta {
+  position: absolute;
+  right: var(--margin-x);
+  bottom: var(--margin-bottom);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  row-gap: 8px;
+  max-width: calc(100% - var(--margin-x) * 2);
+  line-height: 1.4;
+  text-align: right;
+}
+
+.title__meta::before {
+  content: "";
+  order: 2;
+  flex-basis: 100%;
+  height: 0;
+}
+
+.title__icon {
+  order: 1;
+  display: block;
+  flex: 0 0 auto;
+  width: 64px;
+  height: 64px;
+  max-width: none;
+  margin-right: 20px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.title__author {
+  order: 1;
+  font-size: var(--size-author);
+}
+
+.title__event,
+.title__date {
+  order: 3;
+  font-size: var(--size-meta);
+  color: var(--color-muted);
+}
+
+.title__event ~ .title__date::before {
+  content: "/";
+  margin: 0 0.5em;
+}
+
+/* ---- Content page (7.4) ---- */
+
+.slide--content .slide__inner {
+  display: flex;
+  flex-direction: column;
+}
+
+.slide__heading {
+  flex: 0 0 auto;
+  margin: 0 0 40px;
+  font-size: var(--size-heading);
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+/* Remaining height is the body area; overflow is clipped and reported by the viewer (5.7). */
+.slide__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  overflow-wrap: break-word;
+}
+
+.slide__body p {
+  margin: 0 0 0.6em;
+}
+
+.slide__body ul,
+.slide__body ol {
+  margin: 0 0 0.6em;
+  padding-left: 1.3em;
+}
+
+.slide__body li {
+  margin: 0.1em 0;
+}
+
+.slide__body li > ul,
+.slide__body li > ol {
+  margin: 0.1em 0 0;
+  font-size: 0.9em;
+}
+
+.slide__body li::marker {
+  color: var(--color-accent);
+}
+
+.slide__body h3 {
+  margin: 0.8em 0 0.3em;
+  font-size: var(--size-h3);
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.slide__body blockquote {
+  margin: 0 0 0.6em;
+  padding: 0.1em 0 0.1em 1em;
+  border-left: 6px solid var(--color-muted);
+  color: var(--color-muted);
+}
+
+.slide__body table {
+  margin: 0 0 0.6em;
+  border-collapse: collapse;
+  font-size: 0.85em;
+  line-height: 1.4;
+}
+
+.slide__body th,
+.slide__body td {
+  padding: 0.35em 0.9em;
+  border-bottom: 1px solid var(--color-muted);
+  text-align: left;
+  vertical-align: top;
+}
+
+.slide__body th {
+  font-weight: 700;
+  border-bottom: 3px solid var(--color-fg);
+}
+
+.slide__body hr {
+  margin: 32px 0;
+  border: 0;
+  border-top: 2px solid var(--color-muted);
+}
+
+/* Flow containers: the body and each column are flex columns so that an image can take the
+   remaining height (7.4). Only image figures (and columns holding one) may shrink; everything
+   else keeps its content height, so real overflow still shows up and is reported (5.7). */
+.slide__body,
+.column {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+
+.slide__body > *,
+.column > * {
+  flex: 0 0 auto;
+}
+
+.slide__body > table,
+.column > table {
+  align-self: flex-start;
+}
+
+.slide__body > .figure--image,
+.column > .figure--image,
+.slide__body > .columns:has(.figure--image) {
+  flex-shrink: 1;
+  min-height: 0;
+}
+
+/* Block elements (images, code, columns, block math) get 32px around them (7.4). */
+.slide__body .figure,
+.slide__body .columns,
+.slide__body .math--block,
+.slide__body > pre {
+  margin: 32px 0;
+}
+
+/* Flex items do not collapse margins. Every top margin in the body (h3, blocks, hr) is at least
+   as large as any bottom margin, so dropping the bottom margin before them gives the same gaps
+   as collapsed block flow. */
+.slide__body > :has(+ :is(h3, .figure, .columns, .math--block, pre, hr)),
+.column > :has(+ :is(h3, .figure, .math--block, pre, hr)) {
+  margin-bottom: 0;
+}
+
+.slide__body > :first-child,
+.column > :first-child {
+  margin-top: 0;
+}
+
+/* A flex item does not collapse its children's margins either: the last item's margin would
+   add to the list's own bottom margin. (The first item's top margin used to collapse into the
+   same offset, so it stays.) */
+.slide__body > :is(ul, ol) > li:last-child,
+.column > :is(ul, ol) > li:last-child {
+  margin-bottom: 0;
+}
+
+.slide__body > :last-child,
+.column > :last-child,
+.slide__body li > :last-child,
+.slide__body blockquote > :last-child {
+  margin-bottom: 0;
+}
+
+.figure__caption {
+  font-size: var(--size-caption);
+  font-style: normal;
+  line-height: 1.4;
+  color: var(--color-muted);
+}
+
+/* ---- Image in content: largest size that fits the remaining height, never upscaled, centered.
+   An explicit width from the markup (style="width: 60%") wins over the natural size. ---- */
+
+.figure--image {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+}
+
+.figure--image > img {
+  display: block;
+  flex: 0 1 auto;
+  min-height: 0;
+  max-width: 100%;
+  object-fit: contain;
+}
+
+.figure--image .figure__caption {
+  flex: 0 0 auto;
+  margin-top: 12px;
+  text-align: center;
+}
+
+/* Missing / remote / unsupported image (4.7). */
+.figure__missing {
+  box-sizing: border-box;
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 60%;
+  min-height: 240px;
+  padding: 32px;
+  border: 3px dashed var(--color-muted);
+  color: var(--color-muted);
+  font-size: var(--size-caption);
+  line-height: 1.4;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+/* ---- Code (4.8, 7.4): full body width, no wrapping, overflow clipped and reported. ---- */
+
+.figure--code {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  min-width: 0;
+}
+
+/* File name as a tab on top of the code panel. */
+.figure--code > .figure__caption {
+  align-self: flex-start;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 8px 24px 4px;
+  overflow: hidden;
+  background: var(--color-code-block-bg);
+  color: var(--color-code-block-muted);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Shiki sets the theme colors inline. github-dark's own background (#24292e, bluish) is
+   replaced by the neutral code panel, slightly lighter than the slide background (7.4); the
+   token colors are unchanged. Other themes keep their inline colors. */
+.slide pre.shiki.github-dark {
+  background-color: var(--color-code-block-bg) !important;
+}
+
+/* No highlighting: the design's code colors. */
+.slide pre.shiki.plain {
+  background-color: var(--color-code-block-bg);
+  color: var(--color-code-block-fg);
+}
+
+/* One grid row per line: highlighted lines get a full-width tint. Whitespace-only text between
+   the line spans is not rendered in a grid container. */
+.slide pre.shiki > code {
+  display: grid;
+  width: max-content;
+  min-width: 100%;
+  font-size: inherit;
+}
+
+.slide pre.shiki .line {
+  display: block;
+  min-height: 1.5em;
+  margin: 0 -32px;
+  padding: 0 32px;
+}
+
+.slide pre.shiki .line.is-highlighted {
+  background: color-mix(in srgb, var(--color-accent) 22%, transparent);
+}
+
+.figure--line-numbers pre.shiki > code {
+  counter-reset: line;
+}
+
+.figure--line-numbers pre.shiki .line::before {
+  counter-increment: line;
+  content: counter(line);
+  display: inline-block;
+  width: 2ch;
+  margin-right: 1.5ch;
+  text-align: right;
+  opacity: 0.4;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* ---- Columns (4.9): 64px gap, width ratio from --col-ratio, top aligned. Columns stretch to
+   the row height (invisible: no backgrounds) so an image inside can fit the remaining height;
+   content still starts at the top of each column. ---- */
+
+.columns {
+  display: flex;
+  align-items: stretch;
+  gap: 64px;
+}
+
+.column {
+  flex: var(--col-ratio, 1) 1 0%;
+  min-width: 0;
+}
+
+/* ---- Math (MathML from KaTeX): same size as the surrounding text ---- */
+
+.slide math {
+  font-size: 1em;
+}
+
+.math--block {
+  max-width: 100%;
+  text-align: center;
+}
+
+.math--block > math {
+  display: block math;
+  margin: 0 auto;
+}
+
+.slide .math-error {
+  color: var(--color-accent);
+}
+
+/* ---- Takahashi page (7.5): font size is fitted by the viewer up to --takahashi-max ---- */
+
+.slide--takahashi .slide__inner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.takahashi__text {
+  margin: 0;
+  font-size: 160px;
+  font-weight: 900;
+  line-height: 1.2;
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* ---- Code sample page (7.6): title, optional description, code 60% | panel 40%. The panel
+   is: iframe row (▶ Run / ■ Stop + status, drawn by runner.js with the --runner-* colors),
+   console bar with Clear, console. Code and console scroll on their own (wheel over them
+   scrolls instead of turning the page). ---- */
+
+.slide--code {
+  --runner-fg: var(--color-code-block-fg);
+  --runner-bg: var(--color-code-block-bg);
+  --runner-muted: var(--color-code-block-muted);
+  --runner-accent: var(--color-accent);
+  --runner-on-accent: #ffffff;
+  --runner-warn: #e3b341;
+  --runner-warn-bg: #2e2510;
+  --runner-error: #ff7b72;
+  --runner-error-bg: #3a1614;
+  --runner-border: #3d3d3d;
+  --size-console: 24px;
+  --size-runner-controls: 26px;
+}
+
+.slide--code .slide__inner {
+  display: flex;
+  flex-direction: column;
+}
+
+.code__description {
+  flex: 0 0 auto;
+  margin: -8px 0 32px;
+  font-size: var(--size-body);
+  line-height: 1.5;
+}
+
+.runner {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  align-items: stretch;
+  gap: 32px;
+}
+
+.runner__code {
+  flex: 6 1 0%;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+}
+
+.runner__code > pre {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+.runner__panel {
+  flex: 4 1 0%;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--runner-bg);
+  color: var(--runner-fg);
+}
+
+/* Height of the iframe row; runner.js copies color and font size from here into the iframe. */
+.runner__frame-slot {
+  flex: 0 0 auto;
+  height: 80px;
+  font-family: var(--font-sans);
+  font-size: var(--size-runner-controls);
+  background: var(--runner-bg);
+  color: var(--runner-fg);
+}
+
+.runner[data-runnable="false"] .runner__frame-slot {
+  display: flex;
+  align-items: center;
+  padding: 0 0.6em;
+  box-sizing: border-box;
+  color: var(--runner-muted);
+}
+
+.slide--code .runner[data-runnable="false"] .runner__frame-slot::before {
+  content: "実行するコードはありません";
+}
+
+.runner__console-bar {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 8px 16px;
+  border-top: 2px solid var(--runner-border);
+  border-bottom: 2px solid var(--runner-border);
+}
+
+.runner__clear {
+  margin: 0;
+  padding: 2px 16px;
+  border: 2px solid var(--runner-muted);
+  border-radius: 0;
+  background: transparent;
+  color: var(--runner-fg);
+  font-family: var(--font-sans);
+  font-size: var(--size-caption);
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.runner__clear:hover {
+  border-color: var(--runner-fg);
+}
+
+.runner__console {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  padding: 12px 20px;
+  font-family: var(--font-mono);
+  font-size: var(--size-console);
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.runner__line {
+  margin: 0 -20px;
+  padding: 0 20px;
+}
+
+.runner__line--debug,
+.runner__line--system {
+  color: var(--runner-muted);
+}
+
+.runner__line--warn {
+  color: var(--runner-warn);
+  background: var(--runner-warn-bg);
+}
+
+.runner__line--error {
+  color: var(--runner-error);
+  background: var(--runner-error-bg);
+}
+
+/* ---- Full-screen image page (7.7): no .slide__inner, the image covers the whole canvas ---- */
+
+.slide--image {
+  background: var(--color-image-bg);
+}
+
+.slide--image > .image__img {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  object-fit: cover;
+}
+
+.slide--image[data-fit="contain"] > .image__img {
+  object-fit: contain;
+}
+
+/* Image not found: the placeholder box is centered on the canvas. */
+.slide--image > .figure--missing {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  justify-content: center;
+}
+
+.slide--image .figure__missing {
+  border-color: var(--color-overlay-fg);
+  color: var(--color-overlay-fg);
+}
+
+/* Short text bottom-left; the band sits behind the text only. The text itself starts at
+   left 96px / bottom 64px, the band's padding extends outside that. */
+.image__caption {
+  position: absolute;
+  left: calc(var(--margin-x) - 0.5em);
+  bottom: calc(var(--margin-bottom) - 0.25em);
+  max-width: calc(100% - var(--margin-x) * 2);
+  margin: 0;
+  padding: 0.25em 0.5em;
+  background: var(--color-overlay-bg);
+  color: var(--color-overlay-fg);
+  font-size: var(--size-image-caption);
+  line-height: 1.4;
+}
+
+/* ---- Page number (5.4, Q33): injected by the viewer, not on title pages ---- */
+
+.slide__page-number {
+  position: absolute;
+  right: var(--margin-x);
+  bottom: 20px;
+  font-size: var(--size-page-number);
+  line-height: 1;
+  color: var(--color-muted);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+.slide--image .slide__page-number {
+  right: calc(var(--margin-x) - 0.5em);
+  bottom: calc(20px - 0.3em);
+  padding: 0.3em 0.5em;
+  background: var(--color-overlay-bg);
+  color: var(--color-overlay-fg);
+}

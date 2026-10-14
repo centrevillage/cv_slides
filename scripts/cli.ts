@@ -1,17 +1,20 @@
-import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, statSync, watch, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import { buildDeck, type Design, type Runtime } from './build/render.ts';
+import { DESIGN_NAME, buildDeck, type Design, type Runtime } from './build/render.ts';
 import { createCodeHighlighter, type CodeHighlighter } from './build/highlight.ts';
+import { Utf8Error, loadDesignFrom, readUtf8 } from './build/design.ts';
+import { createSlide } from './new_slide.ts';
+import { WatchLoop, clockTime, type PathKind, type WatchFn, type WatchSet } from './watch.ts';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 
 const USAGE = `使い方:
   ./gen_slide.sh <slide> [オプション]   スライドを生成
   ./gen_slide.sh --all [オプション]     slides/ 以下のスライドをすべて生成
-  ./gen_slide.sh <slide> --watch        ファイル変更を監視して自動再生成(未実装)
-  ./gen_slide.sh new <name>             slides/<name>/ に雛形を作成(未実装)
+  ./gen_slide.sh <slide> --watch        ファイル変更を監視して自動再生成(Ctrl+C で終了)
+  ./gen_slide.sh new <name>             slides/<name>/ に雛形を作成
 
 <slide> には md ファイルのパス(slides/foo/foo.md)か、スライド名(foo → slides/foo/foo.md)を指定します。
 
@@ -20,15 +23,16 @@ const USAGE = `使い方:
   -d, --design <name>   デザインテンプレート(フロントマターの design より優先)
       --strict          警告をエラーとして扱う(終了コード 1)
       --all             slides/ 以下のスライドをすべて生成
+      --watch           md・画像・デザイン・ビューアの変更を監視して再生成(ブラウザは手動で再読み込み)
   -h, --help            この説明を表示`;
 
 class CliError extends Error {}
 
 function readText(file: string): string {
   try {
-    return new TextDecoder('utf-8', { fatal: true }).decode(readFileSync(file));
+    return readUtf8(file, rel(file));
   } catch (e) {
-    if (e instanceof TypeError) throw new CliError(`UTF-8 として読めません: ${rel(file)}`);
+    if (e instanceof Utf8Error) throw new CliError(e.message);
     throw e;
   }
 }
@@ -38,9 +42,15 @@ function rel(file: string): string {
   return r === '' ? '.' : r;
 }
 
+const RUNTIME_FILES = ['viewer.css', 'viewer.js', 'runner.js'] as const;
+
+function runtimePath(name: string): string {
+  return path.join(ROOT, 'scripts', 'runtime', name);
+}
+
 function loadRuntime(): Runtime {
-  const read = (name: string): string => {
-    const file = path.join(ROOT, 'scripts', 'runtime', name);
+  const read = (name: (typeof RUNTIME_FILES)[number]): string => {
+    const file = runtimePath(name);
     if (!existsSync(file)) throw new CliError(`ビューアのファイルが見つかりません: ${rel(file)}`);
     return readText(file);
   };
@@ -48,27 +58,7 @@ function loadRuntime(): Runtime {
 }
 
 function loadDesign(id: string): Design | null {
-  const dir = path.join(ROOT, 'designs', id);
-  const jsonFile = path.join(dir, 'design.json');
-  if (!existsSync(jsonFile)) return null;
-  let meta: unknown;
-  try {
-    meta = JSON.parse(readText(jsonFile));
-  } catch (e) {
-    throw new Error(`design.json が不正です(${e instanceof Error ? e.message : String(e)})`);
-  }
-  if (typeof meta !== 'object' || meta === null || Array.isArray(meta)) {
-    throw new Error('design.json はオブジェクトにしてください');
-  }
-  const classes = (meta as { classes?: unknown }).classes ?? [];
-  if (!Array.isArray(classes) || !classes.every((c): c is string => typeof c === 'string')) {
-    throw new Error('design.json の classes は文字列の配列にしてください');
-  }
-  const highlightTheme = (meta as { highlightTheme?: unknown }).highlightTheme ?? 'github-light';
-  if (typeof highlightTheme !== 'string') throw new Error('design.json の highlightTheme は文字列にしてください');
-  const cssFile = path.join(dir, 'design.css');
-  if (!existsSync(cssFile)) throw new Error(`design.css がありません(${rel(cssFile)})`);
-  return { id, css: readText(cssFile), classes, highlightTheme };
+  return loadDesignFrom(path.join(ROOT, 'designs'), id, rel);
 }
 
 function resolveSlidePath(arg: string): string {
@@ -94,14 +84,26 @@ interface Options {
   strict: boolean;
 }
 
-/** Builds one slide file. Returns true on success. */
+function outPathFor(mdFile: string, opts: Options): string {
+  return opts.out !== undefined ? path.resolve(opts.out) : defaultOutPath(mdFile);
+}
+
+interface FileBuild {
+  ok: boolean;
+  /** Local files the build read (see BuildResult.dependencies). */
+  dependencies: string[];
+  designName: string;
+}
+
+/** Builds one slide file. `stamp` prefixes the result line (used by --watch). */
 async function buildFile(
   mdFile: string,
   runtime: Runtime,
   highlighter: CodeHighlighter,
   opts: Options,
-): Promise<boolean> {
-  const outFile = opts.out !== undefined ? path.resolve(opts.out) : defaultOutPath(mdFile);
+  stamp = '',
+): Promise<FileBuild> {
+  const outFile = outPathFor(mdFile, opts);
   if (outFile === mdFile) throw new CliError(`出力先が入力ファイルと同じです: ${rel(outFile)}`);
 
   const result = await buildDeck(readText(mdFile), {
@@ -117,18 +119,115 @@ async function buildFile(
   for (const m of reporter.sorted()) console.error(reporter.format(m));
 
   const counts = `エラー ${reporter.errorCount} 件、警告 ${reporter.warningCount} 件`;
+  const done = (ok: boolean): FileBuild => ({ ok, dependencies: result.dependencies, designName: result.designName });
   if (result.html === null) {
-    console.error(`生成を中止しました: ${rel(mdFile)}(${counts})`);
-    return false;
+    console.error(`${stamp}生成を中止しました: ${rel(mdFile)}(${counts})`);
+    return done(false);
   }
   if (opts.strict && reporter.warningCount > 0) {
-    console.error(`--strict のため警告をエラーとして扱い、生成を中止しました: ${rel(mdFile)}(${counts})`);
-    return false;
+    console.error(`${stamp}--strict のため警告をエラーとして扱い、生成を中止しました: ${rel(mdFile)}(${counts})`);
+    return done(false);
   }
   mkdirSync(path.dirname(outFile), { recursive: true });
   writeFileSync(outFile, result.html);
-  console.log(`生成しました: ${rel(outFile)}(スライド ${result.slideCount} 枚、警告 ${reporter.warningCount} 件)`);
-  return true;
+  console.log(`${stamp}生成しました: ${rel(outFile)}(スライド ${result.slideCount} 枚、警告 ${reporter.warningCount} 件)`);
+  return done(true);
+}
+
+// ---------------------------------------------------------------------------
+// --watch
+// ---------------------------------------------------------------------------
+
+/** Files and directories one build of `mdFile` depends on. */
+function watchSetFor(mdFile: string, opts: Options, build: FileBuild | null): WatchSet {
+  const designName = build?.designName ?? opts.design ?? 'default';
+  return {
+    files: [mdFile, ...RUNTIME_FILES.map(runtimePath), ...(build?.dependencies ?? [])],
+    dirs: [
+      path.join(path.dirname(mdFile), 'img'),
+      ...(DESIGN_NAME.test(designName) ? [path.join(ROOT, 'designs', designName)] : []),
+    ],
+    ignore: [outPathFor(mdFile, opts)],
+  };
+}
+
+function statKind(p: string): PathKind {
+  try {
+    return statSync(p).isDirectory() ? 'dir' : 'file';
+  } catch {
+    return null;
+  }
+}
+
+const watchDir: WatchFn = (dir, recursive, onChange, onError) => {
+  const listener = (_event: string, filename: string | null): void => onChange(filename);
+  let watcher;
+  try {
+    watcher = watch(dir, { recursive }, listener);
+  } catch (e) {
+    // Recursive watching is unavailable on some platforms: fall back to the top level.
+    if (!recursive || (e as { code?: unknown }).code !== 'ERR_FEATURE_UNAVAILABLE_ON_PLATFORM') throw e;
+    watcher = watch(dir, listener);
+  }
+  watcher.on('error', onError);
+  return watcher;
+};
+
+function errorText(e: unknown): string {
+  if (e instanceof CliError) return e.message;
+  return e instanceof Error ? (e.stack ?? e.message) : String(e);
+}
+
+/** Builds, then rebuilds on every change until Ctrl+C. Always returns 0. */
+async function watchSlide(mdFile: string, opts: Options): Promise<number> {
+  const highlighter = await createCodeHighlighter();
+  let last: WatchSet | null = null;
+  const build = async (changed: string[]): Promise<WatchSet> => {
+    const stamp = `[${clockTime(new Date())}] `;
+    if (changed.length > 0) {
+      const more = changed.length > 1 ? ` ほか ${changed.length - 1} 件` : '';
+      console.log(`\n${stamp}変更を検知しました: ${rel(changed[0] ?? '')}${more}`);
+    }
+    try {
+      last = watchSetFor(mdFile, opts, await buildFile(mdFile, loadRuntime(), highlighter, opts, stamp));
+    } catch (e) {
+      // A build that throws (unreadable md, missing viewer file) keeps the previous watch set.
+      console.error(`${stamp}エラー: ${errorText(e)}`);
+    }
+    return last ?? watchSetFor(mdFile, opts, null);
+  };
+  const loop = new WatchLoop({
+    build,
+    watch: watchDir,
+    stat: statKind,
+    onError: (e) => console.error(`[${clockTime(new Date())}] 監視でエラーが発生しました: ${errorText(e)}`),
+  });
+  const stopped = new Promise<void>((resolve) => {
+    const stop = (): void => {
+      loop.stop();
+      console.log('\n監視を終了しました');
+      resolve();
+    };
+    process.once('SIGINT', stop);
+    process.once('SIGTERM', stop);
+  });
+  await loop.start();
+  console.log(`監視しています: ${rel(mdFile)}(Ctrl+C で終了。ブラウザは手動で再読み込みしてください)`);
+  await stopped;
+  return 0;
+}
+
+// ---------------------------------------------------------------------------
+// new <name>
+// ---------------------------------------------------------------------------
+
+function newSlide(name: string): number {
+  const template = readText(path.join(ROOT, 'scripts', 'templates', 'new_slide.md'));
+  const result = createSlide(path.join(ROOT, 'slides'), name, template, rel);
+  if ('error' in result) throw new CliError(result.error);
+  console.log(`作成しました: ${rel(result.mdFile)}(画像は ${rel(path.join(result.dir, 'img'))}/ に置きます)`);
+  console.log(`\n次のコマンドで生成します:\n  ./gen_slide.sh ${name}\n  ./gen_slide.sh ${name} --watch   # 保存するたびに再生成`);
+  return 0;
 }
 
 function listAllSlides(): string[] {
@@ -167,18 +266,16 @@ async function main(argv: string[]): Promise<number> {
     console.log(USAGE);
     return 0;
   }
-  if (positionals[0] === 'new') {
-    console.error('new コマンドは未実装です');
-    return 1;
-  }
-  if (values.watch) {
-    console.error('--watch は未実装です');
-    return 1;
-  }
-
   const opts: Options = { out: values.out, design: values.design, strict: values.strict };
   try {
+    if (positionals[0] === 'new') {
+      const extra = values.all || values.watch || values.strict || opts.out !== undefined || opts.design !== undefined;
+      if (extra) throw new CliError('new コマンドにはオプションを指定できません');
+      if (positionals.length !== 2) throw new CliError('new コマンドにはスライド名を1つ指定してください(例: ./gen_slide.sh new my_talk)');
+      return newSlide(positionals[1] ?? '');
+    }
     if (values.all) {
+      if (values.watch) throw new CliError('--watch と --all は同時に使えません(--watch はスライド1つだけを監視します)');
       if (positionals.length > 0) throw new CliError('--all とスライドの指定は同時に使えません');
       if (opts.out !== undefined) throw new CliError('--all と --out は同時に使えません');
       const files = listAllSlides();
@@ -186,7 +283,7 @@ async function main(argv: string[]): Promise<number> {
       const runtime = loadRuntime();
       const highlighter = await createCodeHighlighter();
       let failed = 0;
-      for (const file of files) if (!(await buildFile(file, runtime, highlighter, opts))) failed++;
+      for (const file of files) if (!(await buildFile(file, runtime, highlighter, opts)).ok) failed++;
       console.log(`全 ${files.length} 件: 成功 ${files.length - failed} 件、失敗 ${failed} 件`);
       return failed > 0 ? 1 : 0;
     }
@@ -196,7 +293,8 @@ async function main(argv: string[]): Promise<number> {
       return 1;
     }
     const mdFile = resolveSlidePath(positionals[0] ?? '');
-    return (await buildFile(mdFile, loadRuntime(), await createCodeHighlighter(), opts)) ? 0 : 1;
+    if (values.watch) return await watchSlide(mdFile, opts);
+    return (await buildFile(mdFile, loadRuntime(), await createCodeHighlighter(), opts)).ok ? 0 : 1;
   } catch (e) {
     if (e instanceof CliError) {
       console.error(`エラー: ${e.message}`);

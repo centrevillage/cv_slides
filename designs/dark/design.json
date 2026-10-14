@@ -1,0 +1,7 @@
+{
+  "name": "Dark",
+  "description": "黒背景・アクセント1色のシンプルなデザイン(暗い会場やまぶしいプロジェクタ向け)",
+  "highlightTheme": "github-dark",
+  "fonts": [],
+  "classes": ["inverse"]
+}
