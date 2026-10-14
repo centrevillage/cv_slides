@@ -1,0 +1,381 @@
+/* cv_slides design "default": white background, one accent color, no decoration (7.1).
+   Everything here lives inside the 1920x1080 slide canvas; never change the .slide size.
+   Selectors start at .slide (no #deck ancestor) so thumbnail clones render identically. */
+
+.slide {
+  --color-bg: #ffffff;
+  --color-fg: #1f1f1f;
+  --color-muted: #707070;
+  --color-accent: #e8590c;
+  --color-code-bg: #f5f5f5;
+
+  --font-sans: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", "Meiryo", sans-serif;
+  --font-mono: "SF Mono", "Menlo", "Consolas", "Noto Sans Mono", monospace;
+
+  --margin-x: 96px;
+  --margin-top: 80px;
+  --margin-bottom: 64px;
+
+  --size-title: 96px;
+  --size-subtitle: 48px;
+  --size-heading: 60px;
+  --size-h3: 44px;
+  --size-body: 40px;
+  --size-code: 30px;
+  --size-caption: 26px;
+  --takahashi-max: 360px;
+
+  --title-center-y: 42%;
+
+  /* Additional sizes from 7.2 */
+  --size-author: 32px;
+  --size-meta: 28px;
+  --size-page-number: 24px;
+
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+  font-size: var(--size-body);
+  font-weight: 400;
+  line-height: 1.6;
+  text-align: left;
+  font-kerning: normal;
+}
+
+/* Page variant: inverse (8.7). Swaps background and foreground. */
+.slide.slide--class-inverse {
+  --color-bg: #1f1f1f;
+  --color-fg: #ffffff;
+  --color-muted: #a3a3a3;
+  --color-code-bg: #333333;
+}
+
+/* ---- Common ---- */
+
+.slide__inner {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  padding: var(--margin-top) var(--margin-x) var(--margin-bottom);
+}
+
+/* Zero-specificity reset so class rules below always win. */
+:where(.slide) :where(h1, h2, h3, h4, h5, h6, p, figure, blockquote, pre) {
+  margin: 0;
+}
+
+/* Japanese headings: balanced line lengths, break at phrase boundaries (Chromium only). */
+.title__main,
+.title__sub,
+.slide__heading,
+.slide__body h3 {
+  text-wrap: balance;
+  word-break: auto-phrase;
+}
+
+/* Emphasis uses weight and the accent color only; no italics (7.1). */
+.slide em {
+  font-style: normal;
+  font-weight: 700;
+}
+
+.slide strong {
+  font-weight: 700;
+  color: var(--color-accent);
+}
+
+.slide del,
+.slide s {
+  color: var(--color-muted);
+}
+
+.slide a {
+  color: var(--color-accent);
+  text-decoration: underline;
+  text-decoration-thickness: 0.06em;
+  text-underline-offset: 0.15em;
+}
+
+.slide code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+}
+
+.slide :not(pre) > code {
+  padding: 0.08em 0.3em;
+  border-radius: 0.15em;
+  background: var(--color-code-bg);
+}
+
+.slide img {
+  max-width: 100%;
+}
+
+.slide pre {
+  padding: 24px 32px;
+  overflow: hidden;
+  background: var(--color-code-bg);
+  font-family: var(--font-mono);
+  font-size: var(--size-code);
+  line-height: 1.5;
+  white-space: pre;
+}
+
+.slide pre code {
+  font-size: inherit;
+}
+
+/* ---- Title page (7.3): title block centered at 42% from the top, meta bottom-right ---- */
+
+/* The flex box spans 0 .. 2 * 42% of the canvas, so its vertical center is at 42%. */
+.slide--title .slide__inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: calc(var(--title-center-y) * 2);
+  padding: 0 var(--margin-x);
+  text-align: center;
+}
+
+.title__main {
+  max-width: 85%;
+  font-size: var(--size-title);
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.title__sub {
+  position: relative;
+  max-width: 85%;
+  margin: calc(var(--size-title) * 0.5) 0 0;
+  font-size: var(--size-subtitle);
+  font-weight: 400;
+  line-height: 1.4;
+  color: color-mix(in srgb, var(--color-fg) 72%, var(--color-bg));
+}
+
+/* Short accent line in the gap between title and subtitle; does not affect layout. */
+.title__main + .title__sub::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: calc(var(--size-title) * -0.25 - 3px);
+  width: 120px;
+  height: 6px;
+  margin-left: -60px;
+  background: var(--color-accent);
+}
+
+/* Positioned against .slide (slide__inner is not positioned). Line 1: icon + author,
+   line 2: "event / date". */
+.title__meta {
+  position: absolute;
+  right: var(--margin-x);
+  bottom: var(--margin-bottom);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  row-gap: 8px;
+  max-width: calc(100% - var(--margin-x) * 2);
+  line-height: 1.4;
+  text-align: right;
+}
+
+.title__meta::before {
+  content: "";
+  order: 2;
+  flex-basis: 100%;
+  height: 0;
+}
+
+.title__icon {
+  order: 1;
+  width: 64px;
+  height: 64px;
+  margin-right: 20px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.title__author {
+  order: 1;
+  font-size: var(--size-author);
+}
+
+.title__event,
+.title__date {
+  order: 3;
+  font-size: var(--size-meta);
+  color: var(--color-muted);
+}
+
+.title__event ~ .title__date::before {
+  content: "/";
+  margin: 0 0.5em;
+}
+
+/* ---- Content page (7.4) ---- */
+
+.slide--content .slide__inner {
+  display: flex;
+  flex-direction: column;
+}
+
+.slide__heading {
+  flex: 0 0 auto;
+  margin: 0 0 40px;
+  font-size: var(--size-heading);
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+/* Remaining height is the body area; overflow is clipped and reported by the viewer (5.7). */
+.slide__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  overflow-wrap: break-word;
+}
+
+.slide__body p {
+  margin: 0 0 0.6em;
+}
+
+.slide__body ul,
+.slide__body ol {
+  margin: 0 0 0.6em;
+  padding-left: 1.3em;
+}
+
+.slide__body li {
+  margin: 0.1em 0;
+}
+
+.slide__body li > ul,
+.slide__body li > ol {
+  margin: 0.1em 0 0;
+  font-size: 0.9em;
+}
+
+.slide__body li::marker {
+  color: var(--color-accent);
+}
+
+.slide__body h3 {
+  margin: 0.8em 0 0.3em;
+  font-size: var(--size-h3);
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.slide__body blockquote {
+  margin: 0 0 0.6em;
+  padding: 0.1em 0 0.1em 1em;
+  border-left: 6px solid var(--color-muted);
+  color: var(--color-muted);
+}
+
+.slide__body table {
+  margin: 0 0 0.6em;
+  border-collapse: collapse;
+  font-size: 0.85em;
+  line-height: 1.4;
+}
+
+.slide__body th,
+.slide__body td {
+  padding: 0.35em 0.9em;
+  border-bottom: 1px solid var(--color-muted);
+  text-align: left;
+  vertical-align: top;
+}
+
+.slide__body th {
+  font-weight: 700;
+  border-bottom: 3px solid var(--color-fg);
+}
+
+.slide__body hr {
+  margin: 32px 0;
+  border: 0;
+  border-top: 2px solid var(--color-muted);
+}
+
+/* Block elements (images, code, columns) get 32px around them. Details: later blocks. */
+.slide__body .figure,
+.slide__body .columns,
+.slide__body > pre {
+  margin: 32px 0;
+}
+
+.slide__body > :first-child {
+  margin-top: 0;
+}
+
+.slide__body > :last-child,
+.slide__body li > :last-child,
+.slide__body blockquote > :last-child {
+  margin-bottom: 0;
+}
+
+.figure__caption {
+  font-size: var(--size-caption);
+  line-height: 1.4;
+  color: var(--color-muted);
+}
+
+.figure--image {
+  text-align: center;
+}
+
+.figure--image .figure__caption {
+  margin-top: 12px;
+  text-align: center;
+}
+
+.figure--code .figure__caption {
+  font-family: var(--font-mono);
+}
+
+.columns {
+  display: flex;
+  align-items: flex-start;
+  gap: 64px;
+}
+
+.column {
+  flex: var(--col-ratio, 1) 1 0%;
+  min-width: 0;
+}
+
+/* ---- Takahashi page (7.5): font size is fitted by the viewer up to --takahashi-max ---- */
+
+.slide--takahashi .slide__inner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.takahashi__text {
+  margin: 0;
+  font-size: 160px;
+  font-weight: 900;
+  line-height: 1.2;
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* ---- Page number (5.4, Q33): injected by the viewer, not on title pages ---- */
+
+.slide__page-number {
+  position: absolute;
+  right: var(--margin-x);
+  bottom: 20px;
+  font-size: var(--size-page-number);
+  line-height: 1;
+  color: var(--color-muted);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}

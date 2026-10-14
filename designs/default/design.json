@@ -1,0 +1,7 @@
+{
+  "name": "Default",
+  "description": "白背景・アクセント1色のシンプルなデザイン",
+  "highlightTheme": "github-light",
+  "fonts": [],
+  "classes": ["inverse"]
+}

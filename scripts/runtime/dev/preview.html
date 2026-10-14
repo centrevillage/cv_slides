@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="cv_slides">
+<title>DSP向け言語「Foo」の紹介(ビューア確認用)</title>
+<!-- Development preview: same structure as the generated HTML, but the runtime files are linked. -->
+<link rel="stylesheet" id="viewer-css" href="../viewer.css">
+<link rel="stylesheet" id="design-css" href="../../../designs/default/design.css">
+</head>
+<body>
+<main id="deck" class="deck design-default" data-design="default" data-page-number="true">
+<section class="slide slide--title" data-index="0">
+  <div class="slide__inner">
+    <h1 class="title__main">DSP向け言語「Foo」の紹介</h1>
+    <p class="title__sub">リアルタイム音声処理をもっと書きやすく</p>
+    <div class="title__meta">
+      <span class="title__author">centrevillage</span>
+      <span class="title__event">Audio Dev Meetup #12</span> <span class="title__date">2026-11-03</span>
+    </div>
+  </div>
+</section>
+<section class="slide slide--content" data-index="1">
+  <div class="slide__inner">
+    <h2 class="slide__heading">今日話すこと</h2>
+    <div class="slide__body">
+      <ul>
+        <li>自己紹介</li>
+        <li>なぜ新しい言語を作るのか
+          <ul>
+            <li>C++ で書くと <code>process()</code> が長くなる</li>
+            <li>試行錯誤のたびにビルドが必要</li>
+          </ul>
+        </li>
+        <li><strong>デモ</strong>(<em>実機</em>で鳴らします)</li>
+      </ul>
+      <p>資料: <a href="https://example.com/" target="_blank" rel="noopener">example.com</a>(リンクはクリックしてもページ送りしない)</p>
+    </div>
+  </div>
+</section>
+<section class="slide slide--content" data-index="2">
+  <div class="slide__inner">
+    <h2 class="slide__heading">既存の選択肢との比較</h2>
+    <div class="slide__body">
+      <table>
+        <thead>
+          <tr><th>言語</th><th>型</th><th style="text-align:right">レイテンシ</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>C++</td><td>静的</td><td style="text-align:right">最小</td></tr>
+          <tr><td>FAUST</td><td>関数型</td><td style="text-align:right">小</td></tr>
+          <tr><td>Foo</td><td>静的 + 推論</td><td style="text-align:right">小</td></tr>
+        </tbody>
+      </table>
+      <h3>設計の方針</h3>
+      <blockquote>
+        <p>シンプルなものは簡単に、複雑なものは可能に。</p>
+      </blockquote>
+      <p>サンプル単位の処理を <code>flow</code> として<del>手で</del>宣言的に書く。</p>
+    </div>
+  </div>
+</section>
+<section class="slide slide--title" data-index="3">
+  <div class="slide__inner">
+    <h1 class="title__main">第2部: 実装編</h1>
+    <p class="title__sub">ハードウェアとの付き合い方</p>
+  </div>
+</section>
+<section class="slide slide--takahashi" data-index="4">
+  <div class="slide__inner"><p class="takahashi__text">とにかく小さく作って速く鳴らしてから考えよう</p></div>
+</section>
+<section class="slide slide--takahashi" data-index="5">
+  <div class="slide__inner"><p class="takahashi__text">音を<br>書く</p></div>
+</section>
+<section class="slide slide--content slide--class-inverse" data-index="6">
+  <div class="slide__inner">
+    <h2 class="slide__heading">反転ページ(class: inverse)</h2>
+    <div class="slide__body">
+      <p>背景と文字の色を入れ替えたバリエーション。<strong>強調</strong>はアクセント色、<code>inline code</code> も読める。</p>
+      <ul>
+        <li>暗転したい場面の区切りに使う</li>
+        <li>色は4色まで: 背景・文字・薄い文字・アクセント</li>
+      </ul>
+    </div>
+  </div>
+</section>
+<section class="slide slide--content" data-index="7">
+  <div class="slide__inner">
+    <h2 class="slide__heading">はみ出すページ(警告の確認用)</h2>
+    <div class="slide__body">
+      <ul>
+        <li>項目 1: 内容が多すぎると本文領域からはみ出す</li>
+        <li>項目 2: 自動で縮小はしない</li>
+        <li>項目 3: はみ出した部分は切り取られる</li>
+        <li>項目 4: 一覧のサムネイルに ⚠ が付く</li>
+        <li>項目 5: ブラウザのコンソールにも警告が出る</li>
+        <li>項目 6: 判定はフォント読み込み完了後</li>
+        <li>項目 7: キャンバス座標で判定する</li>
+        <li>項目 8: 1スライド1メッセージを守ろう</li>
+        <li>項目 9: ここまで来たら確実にはみ出している</li>
+        <li>項目 10: 見えないはず</li>
+        <li>項目 11: 見えないはず</li>
+        <li>項目 12: 見えないはず</li>
+        <li>項目 13: 見えないはず</li>
+        <li>項目 14: 見えないはず</li>
+      </ul>
+    </div>
+  </div>
+</section>
+</main>
+<script id="viewer-js" src="../viewer.js"></script>
+</body>
+</html>
