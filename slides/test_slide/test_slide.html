@@ -24,7 +24,9 @@ body {
   background: #d4d4d4;
 }
 
-/* ---- Slide canvas: fixed 1920x1080, positioned by the viewer, never resized by designs ---- */
+/* ---- Slide canvas: fixed 1920x1080, positioned by the viewer, never resized by designs ----
+   Every slide (original and thumbnail clone) clips its own content to the canvas in all modes
+   (5.7): overflow clip (hidden as the fallback) plus paint containment from contain: strict. */
 
 .slide,
 .deck > .slide,
@@ -35,6 +37,7 @@ body {
   height: 1080px;
   margin: 0;
   overflow: hidden;
+  overflow: clip;
   contain: strict;
 }
 
@@ -151,7 +154,11 @@ body {
   flex: 1 1 auto;
   min-width: 0;
   aspect-ratio: 16 / 9;
+  /* Each thumbnail clips to its frame. No content-visibility here or on the canvas below: with
+     it, Chrome showed a stale piece of a thumbnail next to the frame, over the list border, at
+     the bottom of the list after a jump (e.g. opening #10 / #24 at 1600x900). */
   overflow: hidden;
+  contain: layout paint;
   background: #fff;
   outline: 1px solid rgba(0, 0, 0, 0.18);
 }
@@ -174,8 +181,6 @@ body {
   transform-origin: 0 0;
   transform: scale(var(--thumb-scale, 0.1));
   pointer-events: none;
-  content-visibility: auto;
-  contain-intrinsic-size: 1920px 1080px;
 }
 
 .viewer__thumb-warn {
@@ -339,6 +344,19 @@ body {
   --size-author: 32px;
   --size-meta: 28px;
   --size-page-number: 24px;
+  --size-image-caption: 32px;
+
+  /* Code blocks keep a light panel on every page, including inverse pages (do not invert
+     code: the highlight theme github-light is made for a light background). */
+  --color-code-block-bg: #f5f5f5;
+  --color-code-block-fg: #1f1f1f;
+  --color-code-block-muted: #707070;
+
+  /* Full-screen image page (7.7): letterbox (fit: contain) uses the slide background (4.12);
+     a dark design sets this to black. Then the band behind overlaid text. */
+  --color-image-bg: var(--color-bg);
+  --color-overlay-bg: rgba(0, 0, 0, 0.5);
+  --color-overlay-fg: #ffffff;
 
   background: var(--color-bg);
   color: var(--color-fg);
@@ -350,7 +368,8 @@ body {
   font-kerning: normal;
 }
 
-/* Page variant: inverse (8.7). Swaps background and foreground. */
+/* Page variant: inverse (8.7). Swaps background and foreground. Code blocks keep their light
+   panel (--color-code-block-*), so highlighted code is never inverted. */
 .slide.slide--class-inverse {
   --color-bg: #1f1f1f;
   --color-fg: #ffffff;
@@ -427,6 +446,7 @@ body {
   font-size: var(--size-code);
   line-height: 1.5;
   white-space: pre;
+  tab-size: 4;
 }
 
 .slide pre code {
@@ -500,8 +520,11 @@ body {
 
 .title__icon {
   order: 1;
+  display: block;
+  flex: 0 0 auto;
   width: 64px;
   height: 64px;
+  max-width: none;
   margin-right: 20px;
   border-radius: 50%;
   object-fit: cover;
@@ -611,18 +634,64 @@ body {
   border-top: 2px solid var(--color-muted);
 }
 
-/* Block elements (images, code, columns) get 32px around them. Details: later blocks. */
+/* Flow containers: the body and each column are flex columns so that an image can take the
+   remaining height (7.4). Only image figures (and columns holding one) may shrink; everything
+   else keeps its content height, so real overflow still shows up and is reported (5.7). */
+.slide__body,
+.column {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+
+.slide__body > *,
+.column > * {
+  flex: 0 0 auto;
+}
+
+.slide__body > table,
+.column > table {
+  align-self: flex-start;
+}
+
+.slide__body > .figure--image,
+.column > .figure--image,
+.slide__body > .columns:has(.figure--image) {
+  flex-shrink: 1;
+  min-height: 0;
+}
+
+/* Block elements (images, code, columns, block math) get 32px around them (7.4). */
 .slide__body .figure,
 .slide__body .columns,
+.slide__body .math--block,
 .slide__body > pre {
   margin: 32px 0;
 }
 
-.slide__body > :first-child {
+/* Flex items do not collapse margins. Every top margin in the body (h3, blocks, hr) is at least
+   as large as any bottom margin, so dropping the bottom margin before them gives the same gaps
+   as collapsed block flow. */
+.slide__body > :has(+ :is(h3, .figure, .columns, .math--block, pre, hr)),
+.column > :has(+ :is(h3, .figure, .math--block, pre, hr)) {
+  margin-bottom: 0;
+}
+
+.slide__body > :first-child,
+.column > :first-child {
   margin-top: 0;
 }
 
+/* A flex item does not collapse its children's margins either: the last item's margin would
+   add to the list's own bottom margin. (The first item's top margin used to collapse into the
+   same offset, so it stays.) */
+.slide__body > :is(ul, ol) > li:last-child,
+.column > :is(ul, ol) > li:last-child {
+  margin-bottom: 0;
+}
+
 .slide__body > :last-child,
+.column > :last-child,
 .slide__body li > :last-child,
 .slide__body blockquote > :last-child {
   margin-bottom: 0;
@@ -630,32 +699,158 @@ body {
 
 .figure__caption {
   font-size: var(--size-caption);
+  font-style: normal;
   line-height: 1.4;
   color: var(--color-muted);
 }
 
+/* ---- Image in content: largest size that fits the remaining height, never upscaled, centered.
+   An explicit width from the markup (style="width: 60%") wins over the natural size. ---- */
+
 .figure--image {
-  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+}
+
+.figure--image > img {
+  display: block;
+  flex: 0 1 auto;
+  min-height: 0;
+  max-width: 100%;
+  object-fit: contain;
 }
 
 .figure--image .figure__caption {
+  flex: 0 0 auto;
   margin-top: 12px;
   text-align: center;
 }
 
-.figure--code .figure__caption {
-  font-family: var(--font-mono);
+/* Missing / remote / unsupported image (4.7). */
+.figure__missing {
+  box-sizing: border-box;
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 60%;
+  min-height: 240px;
+  padding: 32px;
+  border: 3px dashed var(--color-muted);
+  color: var(--color-muted);
+  font-size: var(--size-caption);
+  line-height: 1.4;
+  text-align: center;
+  overflow-wrap: anywhere;
 }
+
+/* ---- Code (4.8, 7.4): full body width, no wrapping, overflow clipped and reported. ---- */
+
+.figure--code {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  min-width: 0;
+}
+
+/* File name as a tab on top of the code panel. */
+.figure--code > .figure__caption {
+  align-self: flex-start;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 8px 24px 4px;
+  overflow: hidden;
+  background: var(--color-code-block-bg);
+  color: var(--color-code-block-muted);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Shiki sets the theme colors inline. github-light's background (#fff) equals the slide
+   background, so this design gives it the slightly darker code panel (7.4); the token colors
+   are unchanged (like GitHub's own code blocks). Other themes keep their inline colors. */
+.slide pre.shiki.github-light {
+  background-color: var(--color-code-block-bg) !important;
+}
+
+/* No highlighting: the design's code colors. */
+.slide pre.shiki.plain {
+  background-color: var(--color-code-block-bg);
+  color: var(--color-code-block-fg);
+}
+
+/* One grid row per line: highlighted lines get a full-width tint. Whitespace-only text between
+   the line spans is not rendered in a grid container. */
+.slide pre.shiki > code {
+  display: grid;
+  width: max-content;
+  min-width: 100%;
+  font-size: inherit;
+}
+
+.slide pre.shiki .line {
+  display: block;
+  min-height: 1.5em;
+  margin: 0 -32px;
+  padding: 0 32px;
+}
+
+.slide pre.shiki .line.is-highlighted {
+  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+}
+
+.figure--line-numbers pre.shiki > code {
+  counter-reset: line;
+}
+
+.figure--line-numbers pre.shiki .line::before {
+  counter-increment: line;
+  content: counter(line);
+  display: inline-block;
+  width: 2ch;
+  margin-right: 1.5ch;
+  text-align: right;
+  opacity: 0.4;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* ---- Columns (4.9): 64px gap, width ratio from --col-ratio, top aligned. Columns stretch to
+   the row height (invisible: no backgrounds) so an image inside can fit the remaining height;
+   content still starts at the top of each column. ---- */
 
 .columns {
   display: flex;
-  align-items: flex-start;
+  align-items: stretch;
   gap: 64px;
 }
 
 .column {
   flex: var(--col-ratio, 1) 1 0%;
   min-width: 0;
+}
+
+/* ---- Math (MathML from KaTeX): same size as the surrounding text ---- */
+
+.slide math {
+  font-size: 1em;
+}
+
+.math--block {
+  max-width: 100%;
+  text-align: center;
+}
+
+.math--block > math {
+  display: block math;
+  margin: 0 auto;
+}
+
+.slide .math-error {
+  color: var(--color-accent);
 }
 
 /* ---- Takahashi page (7.5): font size is fitted by the viewer up to --takahashi-max ---- */
@@ -675,6 +870,57 @@ body {
   white-space: nowrap;
 }
 
+/* ---- Full-screen image page (7.7): no .slide__inner, the image covers the whole canvas ---- */
+
+.slide--image {
+  background: var(--color-image-bg);
+}
+
+.slide--image > .image__img {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  object-fit: cover;
+}
+
+.slide--image[data-fit="contain"] > .image__img {
+  object-fit: contain;
+}
+
+/* Image not found: the placeholder box is centered on the canvas. */
+.slide--image > .figure--missing {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  justify-content: center;
+}
+
+.slide--image .figure__missing {
+  border-color: var(--color-overlay-fg);
+  color: var(--color-overlay-fg);
+}
+
+/* Short text bottom-left; the band sits behind the text only. The text itself starts at
+   left 96px / bottom 64px, the band's padding extends outside that. */
+.image__caption {
+  position: absolute;
+  left: calc(var(--margin-x) - 0.5em);
+  bottom: calc(var(--margin-bottom) - 0.25em);
+  max-width: calc(100% - var(--margin-x) * 2);
+  margin: 0;
+  padding: 0.25em 0.5em;
+  background: var(--color-overlay-bg);
+  color: var(--color-overlay-fg);
+  font-size: var(--size-image-caption);
+  line-height: 1.4;
+}
+
 /* ---- Page number (5.4, Q33): injected by the viewer, not on title pages ---- */
 
 .slide__page-number {
@@ -687,6 +933,14 @@ body {
   font-variant-numeric: tabular-nums;
   pointer-events: none;
 }
+
+.slide--image .slide__page-number {
+  right: calc(var(--margin-x) - 0.5em);
+  bottom: calc(20px - 0.3em);
+  padding: 0.3em 0.5em;
+  background: var(--color-overlay-bg);
+  color: var(--color-overlay-fg);
+}
 </style>
 </head>
 <body>
@@ -694,8 +948,9 @@ body {
 <section class="slide slide--title" data-index="0">
 <div class="slide__inner">
 <h1 class="title__main">スライド生成ツールのテスト</h1>
-<p class="title__sub">Block 1 の機能をひととおり確認する</p>
+<p class="title__sub">Block 1・2 の機能をひととおり確認する</p>
 <div class="title__meta">
+<img class="title__icon" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0Ij4KICA8Y2lyY2xlIGN4PSIzMiIgY3k9IjMyIiByPSIzMCIgZmlsbD0iI2U4NTkwYyIvPgogIDxwYXRoIGQ9Ik04IDMyIFEyMCA4IDMyIDMyIFQ1NiAzMiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgo8L3N2Zz4K" alt="">
 <span class="title__author">centrevillage</span>
 <span class="title__event">Audio Dev Meetup</span> <span class="title__date">2026-11-03</span>
 </div>
@@ -710,6 +965,7 @@ body {
 <li>コンテンツページの Markdown 要素</li>
 <li>高橋メソッドページ</li>
 <li>ページ単位のデザイン変更(<code>class</code>)</li>
+<li>コードのハイライト・画像・列分割・数式・全面画像ページ</li>
 </ul>
 </div>
 </div>
@@ -785,35 +1041,151 @@ body {
 </section>
 <section class="slide slide--content" data-index="5">
 <div class="slide__inner">
-<h2 class="slide__heading">コード片(ハイライトは Block 2)</h2>
+<h2 class="slide__heading">コード片(タイトルと行ハイライト)</h2>
 <div class="slide__body">
-<pre><code class="language-js">// フェンスの中の --- はスライド区切りにならない
-const separator = `
----
-`;
-</code></pre>
+<figure class="figure figure--code" data-lang="javascript">
+<figcaption class="figure__caption">separator.js</figcaption>
+<pre class="shiki github-light" style="background-color:#fff;color:#24292e"><code><span class="line"><span style="color:#6A737D">// フェンスの中の --- はスライド区切りにならない</span></span>
+<span class="line is-highlighted"><span style="color:#D73A49">const</span><span style="color:#005CC5"> separator</span><span style="color:#D73A49"> =</span><span style="color:#032F62"> `</span></span>
+<span class="line is-highlighted"><span style="color:#032F62">---</span></span>
+<span class="line is-highlighted"><span style="color:#032F62">`</span><span style="color:#24292E">;</span></span></code></pre>
+</figure>
 </div>
 </div>
 </section>
-<section class="slide slide--title" data-index="6">
+<section class="slide slide--content" data-index="6">
+<div class="slide__inner">
+<h2 class="slide__heading">C++(Zenn/Qiita 式のタイトル・行番号)</h2>
+<div class="slide__body">
+<figure class="figure figure--code figure--line-numbers" data-lang="cpp">
+<figcaption class="figure__caption">biquad.cpp</figcaption>
+<pre class="shiki github-light" style="background-color:#fff;color:#24292e"><code><span class="line"><span style="color:#D73A49">float</span><span style="color:#6F42C1"> Biquad</span><span style="color:#24292E">::</span><span style="color:#6F42C1">process</span><span style="color:#24292E">(float x) {</span></span>
+<span class="line"><span style="color:#6A737D">  // Direct Form I</span></span>
+<span class="line is-highlighted"><span style="color:#D73A49">  float</span><span style="color:#E36209"> y</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> b0</span><span style="color:#D73A49">*</span><span style="color:#24292E">x </span><span style="color:#D73A49">+</span><span style="color:#24292E"> b1</span><span style="color:#D73A49">*</span><span style="color:#24292E">x1 </span><span style="color:#D73A49">+</span><span style="color:#24292E"> b2</span><span style="color:#D73A49">*</span><span style="color:#24292E">x2 </span><span style="color:#D73A49">-</span><span style="color:#24292E"> a1</span><span style="color:#D73A49">*</span><span style="color:#24292E">y1 </span><span style="color:#D73A49">-</span><span style="color:#24292E"> a2</span><span style="color:#D73A49">*</span><span style="color:#24292E">y2;</span></span>
+<span class="line"><span style="color:#24292E">  x2 </span><span style="color:#D73A49">=</span><span style="color:#24292E"> x1; x1 </span><span style="color:#D73A49">=</span><span style="color:#24292E"> x; y2 </span><span style="color:#D73A49">=</span><span style="color:#24292E"> y1; y1 </span><span style="color:#D73A49">=</span><span style="color:#24292E"> y;</span></span>
+<span class="line"><span style="color:#D73A49">  return</span><span style="color:#24292E"> y;</span></span>
+<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+</figure>
+</div>
+</div>
+</section>
+<section class="slide slide--content" data-index="7">
+<div class="slide__inner">
+<h2 class="slide__heading">Rust / Python / Go</h2>
+<div class="slide__body">
+<figure class="figure figure--code" data-lang="rust">
+<figcaption class="figure__caption">gain.rs</figcaption>
+<pre class="shiki github-light" style="background-color:#fff;color:#24292e"><code><span class="line"><span style="color:#D73A49">fn</span><span style="color:#6F42C1"> apply_gain</span><span style="color:#24292E">(buf</span><span style="color:#D73A49">:</span><span style="color:#D73A49"> &#x26;mut</span><span style="color:#24292E"> [</span><span style="color:#6F42C1">f32</span><span style="color:#24292E">], gain</span><span style="color:#D73A49">:</span><span style="color:#6F42C1"> f32</span><span style="color:#24292E">) {</span></span>
+<span class="line"><span style="color:#D73A49">    for</span><span style="color:#24292E"> s </span><span style="color:#D73A49">in</span><span style="color:#24292E"> buf</span><span style="color:#D73A49">.</span><span style="color:#6F42C1">iter_mut</span><span style="color:#24292E">() { </span><span style="color:#D73A49">*</span><span style="color:#24292E">s </span><span style="color:#D73A49">*=</span><span style="color:#24292E"> gain; }</span></span>
+<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+</figure>
+<figure class="figure figure--code" data-lang="python">
+<pre class="shiki github-light" style="background-color:#fff;color:#24292e"><code><span class="line"><span style="color:#D73A49">def</span><span style="color:#6F42C1"> db_to_gain</span><span style="color:#24292E">(db: </span><span style="color:#005CC5">float</span><span style="color:#24292E">) -> </span><span style="color:#005CC5">float</span><span style="color:#24292E">:</span></span>
+<span class="line"><span style="color:#D73A49">    return</span><span style="color:#005CC5"> 10</span><span style="color:#D73A49"> **</span><span style="color:#24292E"> (db </span><span style="color:#D73A49">/</span><span style="color:#005CC5"> 20</span><span style="color:#24292E">)  </span><span style="color:#6A737D"># dB -> 倍率</span></span></code></pre>
+</figure>
+<figure class="figure figure--code" data-lang="go">
+<pre class="shiki github-light" style="background-color:#fff;color:#24292e"><code><span class="line"><span style="color:#D73A49">func</span><span style="color:#6F42C1"> Mix</span><span style="color:#24292E">(</span><span style="color:#E36209">a</span><span style="color:#24292E">, </span><span style="color:#E36209">b</span><span style="color:#D73A49"> float32</span><span style="color:#24292E">) </span><span style="color:#D73A49">float32</span><span style="color:#24292E"> { </span><span style="color:#D73A49">return</span><span style="color:#24292E"> (a </span><span style="color:#D73A49">+</span><span style="color:#24292E"> b) </span><span style="color:#D73A49">*</span><span style="color:#005CC5"> 0.5</span><span style="color:#24292E"> }</span></span></code></pre>
+</figure>
+</div>
+</div>
+</section>
+<section class="slide slide--content" data-index="8">
+<div class="slide__inner">
+<h2 class="slide__heading">TypeScript / C# / Java / Scala / Ruby / C</h2>
+<div class="slide__body">
+<figure class="figure figure--code" data-lang="typescript">
+<pre class="shiki github-light" style="background-color:#fff;color:#24292e"><code><span class="line"><span style="color:#D73A49">const</span><span style="color:#005CC5"> ctx</span><span style="color:#D73A49">:</span><span style="color:#6F42C1"> AudioContext</span><span style="color:#D73A49"> =</span><span style="color:#D73A49"> new</span><span style="color:#6F42C1"> AudioContext</span><span style="color:#24292E">({ sampleRate: </span><span style="color:#005CC5">48000</span><span style="color:#24292E"> });</span></span></code></pre>
+</figure>
+<figure class="figure figure--code" data-lang="csharp">
+<pre class="shiki github-light" style="background-color:#fff;color:#24292e"><code><span class="line"><span style="color:#D73A49">public</span><span style="color:#D73A49"> float</span><span style="color:#6F42C1"> Process</span><span style="color:#24292E">(</span><span style="color:#D73A49">float</span><span style="color:#6F42C1"> x</span><span style="color:#24292E">) </span><span style="color:#D73A49">=></span><span style="color:#24292E"> x </span><span style="color:#D73A49">*</span><span style="color:#24292E"> Gain;</span></span></code></pre>
+</figure>
+<figure class="figure figure--code" data-lang="java">
+<pre class="shiki github-light" style="background-color:#fff;color:#24292e"><code><span class="line"><span style="color:#D73A49">final</span><span style="color:#D73A49"> double</span><span style="color:#24292E"> freq </span><span style="color:#D73A49">=</span><span style="color:#005CC5"> 440.0</span><span style="color:#D73A49"> *</span><span style="color:#24292E"> Math.</span><span style="color:#6F42C1">pow</span><span style="color:#24292E">(</span><span style="color:#005CC5">2</span><span style="color:#24292E">, (note </span><span style="color:#D73A49">-</span><span style="color:#005CC5"> 69</span><span style="color:#24292E">) </span><span style="color:#D73A49">/</span><span style="color:#005CC5"> 12.0</span><span style="color:#24292E">);</span></span></code></pre>
+</figure>
+<figure class="figure figure--code" data-lang="scala">
+<pre class="shiki github-light" style="background-color:#fff;color:#24292e"><code><span class="line"><span style="color:#D73A49">val</span><span style="color:#E36209"> samples</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> (</span><span style="color:#005CC5">0</span><span style="color:#24292E"> until </span><span style="color:#005CC5">64</span><span style="color:#24292E">).map(i </span><span style="color:#D73A49">=></span><span style="color:#24292E"> math.sin(</span><span style="color:#005CC5">2</span><span style="color:#D73A49"> *</span><span style="color:#24292E"> math.</span><span style="color:#6F42C1">Pi</span><span style="color:#D73A49"> *</span><span style="color:#24292E"> i </span><span style="color:#D73A49">/</span><span style="color:#005CC5"> 64</span><span style="color:#24292E">))</span></span></code></pre>
+</figure>
+<figure class="figure figure--code" data-lang="ruby">
+<pre class="shiki github-light" style="background-color:#fff;color:#24292e"><code><span class="line"><span style="color:#E36209">notes</span><span style="color:#D73A49"> =</span><span style="color:#032F62"> %w[C D E F G A B]</span><span style="color:#24292E">.</span><span style="color:#6F42C1">map</span><span style="color:#24292E"> { |n| </span><span style="color:#032F62">"</span><span style="color:#032F62">#{n}</span><span style="color:#032F62">4"</span><span style="color:#24292E"> }</span></span></code></pre>
+</figure>
+<figure class="figure figure--code" data-lang="c">
+<pre class="shiki github-light" style="background-color:#fff;color:#24292e"><code><span class="line"><span style="color:#D73A49">static</span><span style="color:#D73A49"> inline</span><span style="color:#D73A49"> float</span><span style="color:#6F42C1"> clampf</span><span style="color:#24292E">(</span><span style="color:#D73A49">float</span><span style="color:#E36209"> v</span><span style="color:#24292E">) { </span><span style="color:#D73A49">return</span><span style="color:#24292E"> v </span><span style="color:#D73A49">&#x3C;</span><span style="color:#D73A49"> -</span><span style="color:#005CC5">1.</span><span style="color:#D73A49">f</span><span style="color:#D73A49"> ?</span><span style="color:#D73A49"> -</span><span style="color:#005CC5">1.</span><span style="color:#D73A49">f</span><span style="color:#D73A49"> :</span><span style="color:#24292E"> (v </span><span style="color:#D73A49">></span><span style="color:#005CC5"> 1.</span><span style="color:#D73A49">f</span><span style="color:#D73A49"> ?</span><span style="color:#005CC5"> 1.</span><span style="color:#D73A49">f</span><span style="color:#D73A49"> :</span><span style="color:#24292E"> v); }</span></span></code></pre>
+</figure>
+</div>
+</div>
+</section>
+<section class="slide slide--content" data-index="9">
+<div class="slide__inner">
+<h2 class="slide__heading">SuperCollider / FAUST</h2>
+<div class="slide__body">
+<figure class="figure figure--code" data-lang="supercollider">
+<figcaption class="figure__caption">sine.scd</figcaption>
+<pre class="shiki github-light" style="background-color:#fff;color:#24292e"><code><span class="line"><span style="color:#6A737D">// SinOsc を鳴らす</span></span>
+<span class="line"><span style="color:#24292E">(</span></span>
+<span class="line"><span style="color:#6F42C1">SynthDef</span><span style="color:#24292E">(</span><span style="color:#6F42C1">\sine</span><span style="color:#24292E">, { |out=0, freq=440, amp=0.1|</span></span>
+<span class="line"><span style="color:#6F42C1">    Out</span><span style="color:#24292E">.ar(out, </span><span style="color:#6F42C1">SinOsc</span><span style="color:#24292E">.ar(freq, </span><span style="color:#005CC5">0</span><span style="color:#24292E">, amp) ! </span><span style="color:#005CC5">2</span><span style="color:#24292E">);</span></span>
+<span class="line"><span style="color:#24292E">}).add;</span></span>
+<span class="line"><span style="color:#24292E">)</span></span>
+<span class="line"><span style="color:#005CC5">~synth</span><span style="color:#24292E"> = </span><span style="color:#6F42C1">Synth</span><span style="color:#24292E">(</span><span style="color:#6F42C1">\sine</span><span style="color:#24292E">, [</span><span style="color:#005CC5">freq:</span><span style="color:#005CC5"> 880</span><span style="color:#24292E">]);</span></span></code></pre>
+</figure>
+<figure class="figure figure--code" data-lang="faust">
+<figcaption class="figure__caption">lowpass.dsp</figcaption>
+<pre class="shiki github-light" style="background-color:#fff;color:#24292e"><code><span class="line"><span style="color:#D73A49">import(</span><span style="color:#032F62">"stdfaust.lib"</span><span style="color:#D73A49">)</span><span style="color:#005CC5">;</span></span>
+<span class="line"><span style="color:#6A737D">// 1次ローパス</span></span>
+<span class="line"><span style="color:#D73A49">process</span><span style="color:#005CC5"> =</span><span style="color:#24292E"> fi</span><span style="color:#D73A49">.</span><span style="color:#24292E">lowpass</span><span style="color:#D73A49">(</span><span style="color:#005CC5">1</span><span style="color:#D73A49">,</span><span style="color:#005CC5"> 1000</span><span style="color:#D73A49">)</span><span style="color:#D73A49"> &#x3C;:</span><span style="color:#24292E"> _</span><span style="color:#D73A49">,</span><span style="color:#24292E"> _</span><span style="color:#005CC5">;</span></span></code></pre>
+</figure>
+</div>
+</div>
+</section>
+<section class="slide slide--content" data-index="10">
+<div class="slide__inner">
+<h2 class="slide__heading">Onsa(自作言語)</h2>
+<div class="slide__body">
+<figure class="figure figure--code" data-lang="onsa">
+<figcaption class="figure__caption">dsp.onsa</figcaption>
+<pre class="shiki github-light" style="background-color:#fff;color:#24292e"><code><span class="line"><span style="color:#6A737D">/// 素朴なのこぎり波（エイリアシングあり。例示用）</span></span>
+<span class="line"><span style="color:#D73A49">pub</span><span style="color:#D73A49"> flow</span><span style="color:#6F42C1"> saw</span><span style="color:#24292E">(f0: </span><span style="color:#005CC5">F32</span><span style="color:#D73A49"> at</span><span style="color:#005CC5"> block</span><span style="color:#24292E">) </span><span style="color:#D73A49">-></span><span style="color:#005CC5"> F32</span><span style="color:#D73A49"> at</span><span style="color:#005CC5"> sample</span><span style="color:#24292E"> {</span></span>
+<span class="line is-highlighted"><span style="color:#D73A49">  let</span><span style="color:#24292E"> phase </span><span style="color:#D73A49">=</span><span style="color:#6F42C1"> wrap01</span><span style="color:#24292E">(</span><span style="color:#6F42C1">prev</span><span style="color:#D73A49">~</span><span style="color:#24292E">(</span><span style="color:#D73A49">^</span><span style="color:#24292E">phase) </span><span style="color:#D73A49">+</span><span style="color:#24292E"> (f0 </span><span style="color:#D73A49">/</span><span style="color:#6F42C1"> sample_rate</span><span style="color:#24292E">()))</span></span>
+<span class="line"><span style="color:#24292E">  (</span><span style="color:#005CC5">2.0</span><span style="color:#D73A49"> *</span><span style="color:#24292E"> phase) </span><span style="color:#D73A49">-</span><span style="color:#005CC5"> 1.0</span></span>
+<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+</figure>
+</div>
+</div>
+</section>
+<section class="slide slide--content" data-index="11">
+<div class="slide__inner">
+<h2 class="slide__heading">ハイライトしない言語</h2>
+<div class="slide__body">
+<figure class="figure figure--code" data-lang="zig">
+<pre class="shiki plain"><code><span class="line">// 対応外の言語は警告を出してハイライトせずに表示する</span>
+<span class="line">const std = @import(&quot;std&quot;);</span></code></pre>
+</figure>
+<figure class="figure figure--code">
+<pre class="shiki plain"><code><span class="line">言語指定のないコード片はハイライトしない</span>
+<span class="line">&lt;タグ&gt; &amp; &quot;引用符&quot; もエスケープされる</span></code></pre>
+</figure>
+</div>
+</div>
+</section>
+<section class="slide slide--title" data-index="12">
 <div class="slide__inner">
 <h1 class="title__main">第2部: 高橋メソッド</h1>
 <p class="title__sub">大きな文字で伝える</p>
 </div>
 </section>
-<section class="slide slide--takahashi" data-index="7">
+<section class="slide slide--takahashi" data-index="13">
 <div class="slide__inner">
 <p class="takahashi__text">音を<br>
 <strong>書く</strong></p>
 </div>
 </section>
-<section class="slide slide--takahashi" data-index="8">
+<section class="slide slide--takahashi" data-index="14">
 <div class="slide__inner">
 <p class="takahashi__text">省略記法の<br>
 高橋メソッド</p>
 </div>
 </section>
-<section class="slide slide--content slide--class-inverse" data-index="9">
+<section class="slide slide--content slide--class-inverse" data-index="15">
 <div class="slide__inner">
 <h2 class="slide__heading">反転したページ</h2>
 <div class="slide__body">
@@ -824,7 +1196,7 @@ const separator = `
 </div>
 </div>
 </section>
-<section class="slide slide--content" data-index="10">
+<section class="slide slide--content" data-index="16">
 <div class="slide__inner">
 <h2 class="slide__heading">H1 と本文が混在する場合</h2>
 <div class="slide__body">
@@ -835,6 +1207,122 @@ const separator = `
 </ul>
 </div>
 </div>
+</section>
+<section class="slide slide--content" data-index="17">
+<div class="slide__inner">
+<h2 class="slide__heading">画像(PNG・幅指定・キャプション)</h2>
+<div class="slide__body">
+<figure class="figure figure--image">
+<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAC0CAIAAABqhmJGAAAD/klEQVR42u3XwW0TURSF4VfOVEIHdMCaItjQRtrIhiJoKEhRhBAJ2B7P+L177oe+JTiee/wnYWzbT6Co4QQgYEDAgIBBwICAAQEDAgYBAwIGBAwCBgQMCBgQMAgYEDAgYEDAIGBAwICAQcCAgAEBAwIGAQMCBgQMvAb8aXsGihIwCBgQMCBgEDAgYEDAgIBBwICAAQGDgAEBAwIGBAwCBgQMCLiQl0t/nMi+Aq63q5LtK+CcdTVsXwEXnlbG9hVwwroatq+A15321r+MfQU8c92z/zn2FfDx6859KbrtK+DnFSbRsH0FPHPdxV+Z1H0FvFZjGravgB+3bvUvRPV9x5ftiWu8P3rSl6PovgLeefHIr2jfcvsKeOmWNGxfAdeuSMP2FXDtfjRsXwHXLkfD9hXwXWf1Zuy74JsRcJkfen4I21fAtWvRsH0FXLsTDdtXwLX/tylg+wq4dh4atq+AC/+C6hdp+wq49k82AdtXwLWT0LB9BVw7Bg0331fAAravgK3rzTvRjDcv4IQANNx2XwEL2L4Ctq4HcZYZDzKsG/Oh13DDfQUsYPsK2LoeyilmPNSwrkezb91HE7CA7Stg63pAjz/jAVsH7ENs3+rPOLoN3OST3TbgbvuOVhu3+lg3bLjhvm8Bf9u+d/B7Xc/reTOed/R55j+/PXf7QNs3P+Dsx264bqsHb7vvaPKLR891+zy7gJMfvu26TR6/874j/gTN67WvgA3sCB5t7YBTD6Fe+3YJOO8c1s0+iH0FLGCPExRw0lGsm30W+34ccMZprJt9HPsKWMD2DQ24+oGsm30i+14OuO6ZrJt9KPsKGPs2CLjisaybfS773hZwrZNZN/to9r034JUPV+V9upt9Hxpwle981s0+nX33B7z++aybfUD7Hhnwakf0y1X2De17QMDL3tG62Ze072EBL3hN62bf074HB7za/0asm31S+54b8Nyz+vacfVX7nhLwIpe1bvZt7XtiwNPva93sC9v39IAnXtm62Xe274MCnnJr62Y3bN89AT9tX/d5efdn90st+OWwbwmjxNGtm92wfecE/OHpj73+2a+PfVsHfOoG1s1u2L5LBPyvJe4Z4/AXxL4CftAk1s1u2L4rBvyfYa6c585/zqyG7RsS8MWR/hrspr/M+g3bt3zAt85s2uyM7Vsy4KM2Nk92w864bsB3zmyY7IydrkbA+za2SnbDjlYp4OuXNkZ2yU5UO2BAwICAQcCAgAEBg4ABAQMCBgQMAgYEDAgYEDAIGBAwIGDoFPCP7TNQlIBBwICAAQGDgAEBAwIGBAwCBgQMCBgEDAgYEDAgYBAwIGBAwICAQcCAgAEBg4ABAQMCBgQMAgYEDAgYePULL1pwLXK+RKYAAAAASUVORK5CYII=" alt="波形のサンプル画像" style="width: 60%">
+<figcaption class="figure__caption">PNG を data URI で埋め込む</figcaption>
+</figure>
+</div>
+</div>
+</section>
+<section class="slide slide--content" data-index="18">
+<div class="slide__inner">
+<h2 class="slide__heading">画像(SVG・BMP)</h2>
+<div class="slide__body">
+<figure class="figure figure--image">
+<img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0MDAgMTIwIiB3aWR0aD0iNDAwIiBoZWlnaHQ9IjEyMCIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTYiPgogIDxyZWN0IHg9IjEwIiB5PSI0MCIgd2lkdGg9IjkwIiBoZWlnaHQ9IjQwIiByeD0iNiIgZmlsbD0iI2Y1ZjVmNSIgc3Ryb2tlPSIjMWYxZjFmIi8+CiAgPHRleHQgeD0iNTUiIHk9IjY1IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5PU0M8L3RleHQ+CiAgPHJlY3QgeD0iMTU1IiB5PSI0MCIgd2lkdGg9IjkwIiBoZWlnaHQ9IjQwIiByeD0iNiIgZmlsbD0iI2Y1ZjVmNSIgc3Ryb2tlPSIjMWYxZjFmIi8+CiAgPHRleHQgeD0iMjAwIiB5PSI2NSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+QmlxdWFkPC90ZXh0PgogIDxyZWN0IHg9IjMwMCIgeT0iNDAiIHdpZHRoPSI5MCIgaGVpZ2h0PSI0MCIgcng9IjYiIGZpbGw9IiNmNWY1ZjUiIHN0cm9rZT0iIzFmMWYxZiIvPgogIDx0ZXh0IHg9IjM0NSIgeT0iNjUiIHRleHQtYW5jaG9yPSJtaWRkbGUiPk91dDwvdGV4dD4KICA8cGF0aCBkPSJNMTAwIDYwIEgxNTAgTTI0NSA2MCBIMjk1IiBzdHJva2U9IiNlODU5MGMiIHN0cm9rZS13aWR0aD0iMyIvPgogIDxwYXRoIGQ9Ik0xNTAgNjAgbC04IC01IHYxMCB6IE0yOTUgNjAgbC04IC01IHYxMCB6IiBmaWxsPSIjZTg1OTBjIi8+Cjwvc3ZnPgo=" alt="信号の流れ" style="width: 800px">
+<figcaption class="figure__caption">SVG(image/svg+xml)</figcaption>
+</figure>
+<figure class="figure figure--image">
+<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAgCAIAAADbtmxLAAAAwElEQVR42s3X0Q2AIAwEUAZwB+Zy/x8Tl9DID7lCIVq8I/6B5tn0BFN+xrFvcJ2dYVfGrk+5GhKgMm1NZFBtKiw+CFgqICiVBMgvFQ10zzVLtRw0fBAEcHVvpZkb/K4igGYCSAD5peKAoNlVQM0AkkHAUgFBqWJAIW8WuNWkqFL3AkgD2a6SANkA8kHAUgENA0gA+aWigexp/et5KLzZ136p3201TrP/CpoJIAHkl4oDgmZXATUDSAbZHxsJUG26AEmkdQ7M53aZAAAAAElFTkSuQmCC" alt="チェッカー模様" style="width: 20%">
+<figcaption class="figure__caption">BMP はビルド時に PNG へ変換</figcaption>
+</figure>
+</div>
+</div>
+</section>
+<section class="slide slide--content" data-index="19">
+<div class="slide__inner">
+<h2 class="slide__heading">画像が見つからない場合</h2>
+<div class="slide__body">
+<figure class="figure figure--image figure--missing">
+<div class="figure__missing">画像なし: img/not_found.png</div>
+</figure>
+<p>行内の画像 <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0Ij4KICA8Y2lyY2xlIGN4PSIzMiIgY3k9IjMyIiByPSIzMCIgZmlsbD0iI2U4NTkwYyIvPgogIDxwYXRoIGQ9Ik04IDMyIFEyMCA4IDMyIDMyIFQ1NiAzMiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgo8L3N2Zz4K" alt="アイコン" style="width: 40px"> は警告を出してそのまま出力する</p>
+</div>
+</div>
+</section>
+<section class="slide slide--content" data-index="20">
+<div class="slide__inner">
+<h2 class="slide__heading">列分割(1:2)</h2>
+<div class="slide__body">
+<div class="columns columns--2">
+<div class="column" style="--col-ratio: 1">
+<h3>Before</h3>
+<ul>
+<li>消費電力 120mA</li>
+<li>ノイズ多め</li>
+</ul>
+</div>
+<div class="column" style="--col-ratio: 2">
+<h3>After</h3>
+<figure class="figure figure--image">
+<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAC0CAIAAABqhmJGAAAD/klEQVR42u3XwW0TURSF4VfOVEIHdMCaItjQRtrIhiJoKEhRhBAJ2B7P+L177oe+JTiee/wnYWzbT6Co4QQgYEDAgIBBwICAAQEDAgYBAwIGBAwCBgQMCBgQMAgYEDAgYEDAIGBAwICAQcCAgAEBAwIGAQMCBgQMvAb8aXsGihIwCBgQMCBgEDAgYEDAgIBBwICAAQGDgAEBAwIGBAwCBgQMCLiQl0t/nMi+Aq63q5LtK+CcdTVsXwEXnlbG9hVwwroatq+A15321r+MfQU8c92z/zn2FfDx6859KbrtK+DnFSbRsH0FPHPdxV+Z1H0FvFZjGravgB+3bvUvRPV9x5ftiWu8P3rSl6PovgLeefHIr2jfcvsKeOmWNGxfAdeuSMP2FXDtfjRsXwHXLkfD9hXwXWf1Zuy74JsRcJkfen4I21fAtWvRsH0FXLsTDdtXwLX/tylg+wq4dh4atq+AC/+C6hdp+wq49k82AdtXwLWT0LB9BVw7Bg0331fAAravgK3rzTvRjDcv4IQANNx2XwEL2L4Ctq4HcZYZDzKsG/Oh13DDfQUsYPsK2LoeyilmPNSwrkezb91HE7CA7Stg63pAjz/jAVsH7ENs3+rPOLoN3OST3TbgbvuOVhu3+lg3bLjhvm8Bf9u+d/B7Xc/reTOed/R55j+/PXf7QNs3P+Dsx264bqsHb7vvaPKLR891+zy7gJMfvu26TR6/874j/gTN67WvgA3sCB5t7YBTD6Fe+3YJOO8c1s0+iH0FLGCPExRw0lGsm30W+34ccMZprJt9HPsKWMD2DQ24+oGsm30i+14OuO6ZrJt9KPsKGPs2CLjisaybfS773hZwrZNZN/to9r034JUPV+V9upt9Hxpwle981s0+nX33B7z++aybfUD7Hhnwakf0y1X2De17QMDL3tG62Ze072EBL3hN62bf074HB7za/0asm31S+54b8Nyz+vacfVX7nhLwIpe1bvZt7XtiwNPva93sC9v39IAnXtm62Xe274MCnnJr62Y3bN89AT9tX/d5efdn90st+OWwbwmjxNGtm92wfecE/OHpj73+2a+PfVsHfOoG1s1u2L5LBPyvJe4Z4/AXxL4CftAk1s1u2L4rBvyfYa6c585/zqyG7RsS8MWR/hrspr/M+g3bt3zAt85s2uyM7Vsy4KM2Nk92w864bsB3zmyY7IydrkbA+za2SnbDjlYp4OuXNkZ2yU5UO2BAwICAQcCAgAEBg4ABAQMCBgQMAgYEDAgYEDAIGBAwIGDoFPCP7TNQlIBBwICAAQGDgAEBAwIGBAwCBgQMCBgEDAgYEDAgYBAwIGBAwICAQcCAgAEBg4ABAQMCBgQMAgYEDAgYePULL1pwLXK+RKYAAAAASUVORK5CYII=" alt="新基板">
+<figcaption class="figure__caption">Rev.2</figcaption>
+</figure>
+</div>
+</div>
+<p>列分割の後に通常の本文を置ける</p>
+</div>
+</div>
+</section>
+<section class="slide slide--content" data-index="21">
+<div class="slide__inner">
+<h2 class="slide__heading">列分割(3列・コードと表)</h2>
+<div class="slide__body">
+<div class="columns columns--3">
+<div class="column" style="--col-ratio: 1">
+<figure class="figure figure--code" data-lang="javascript">
+<pre class="shiki github-light" style="background-color:#fff;color:#24292e"><code><span class="line"><span style="color:#D73A49">const</span><span style="color:#005CC5"> a</span><span style="color:#D73A49"> =</span><span style="color:#005CC5"> 1</span><span style="color:#24292E">;</span></span></code></pre>
+</figure>
+</div>
+<div class="column" style="--col-ratio: 1">
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th style="text-align:right">値</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>fs</td>
+<td style="text-align:right">48000</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="column" style="--col-ratio: 1">
+<ul>
+<li>3列まで</li>
+<li>上揃え</li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+</section>
+<section class="slide slide--content" data-index="22">
+<div class="slide__inner">
+<h2 class="slide__heading">数式</h2>
+<div class="slide__body">
+<p>行内の数式 <span class="math math--inline"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>f</mi><mi>c</mi></msub><mo>=</mo><mfrac><mn>1</mn><mrow><mn>2</mn><mi>π</mi><mi>R</mi><mi>C</mi></mrow></mfrac></mrow><annotation encoding="application/x-tex">f_c = \frac{1}{2\pi RC}</annotation></semantics></math></span> と、ドル記号そのもの $100。</p>
+<div class="math math--block"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mi>H</mi><mo stretchy="false">(</mo><mi>z</mi><mo stretchy="false">)</mo><mo>=</mo><mfrac><mrow><msub><mi>b</mi><mn>0</mn></msub><mo>+</mo><msub><mi>b</mi><mn>1</mn></msub><msup><mi>z</mi><mrow><mo>−</mo><mn>1</mn></mrow></msup><mo>+</mo><msub><mi>b</mi><mn>2</mn></msub><msup><mi>z</mi><mrow><mo>−</mo><mn>2</mn></mrow></msup></mrow><mrow><mn>1</mn><mo>+</mo><msub><mi>a</mi><mn>1</mn></msub><msup><mi>z</mi><mrow><mo>−</mo><mn>1</mn></mrow></msup><mo>+</mo><msub><mi>a</mi><mn>2</mn></msub><msup><mi>z</mi><mrow><mo>−</mo><mn>2</mn></mrow></msup></mrow></mfrac></mrow><annotation encoding="application/x-tex">H(z) = \frac{b_0 + b_1 z^{-1} + b_2 z^{-2}}{1 + a_1 z^{-1} + a_2 z^{-2}}</annotation></semantics></math></div>
+<div class="math math--block"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mi>y</mi><mo stretchy="false">[</mo><mi>n</mi><mo stretchy="false">]</mo><mo>=</mo><munderover><mo>∑</mo><mrow><mi>k</mi><mo>=</mo><mn>0</mn></mrow><mrow><mi>N</mi><mo>−</mo><mn>1</mn></mrow></munderover><mi>h</mi><mo stretchy="false">[</mo><mi>k</mi><mo stretchy="false">]</mo><mtext> </mtext><mi>x</mi><mo stretchy="false">[</mo><mi>n</mi><mo>−</mo><mi>k</mi><mo stretchy="false">]</mo></mrow><annotation encoding="application/x-tex">y[n] = \sum_{k=0}^{N-1} h[k]\,x[n-k]</annotation></semantics></math></div>
+<p>コードの中の <code>$x$</code> は数式にならない。</p>
+</div>
+</div>
+</section>
+<section class="slide slide--image" data-index="23" data-fit="cover">
+<img class="image__img" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAC0CAIAAABqhmJGAAAD/klEQVR42u3XwW0TURSF4VfOVEIHdMCaItjQRtrIhiJoKEhRhBAJ2B7P+L177oe+JTiee/wnYWzbT6Co4QQgYEDAgIBBwICAAQEDAgYBAwIGBAwCBgQMCBgQMAgYEDAgYEDAIGBAwICAQcCAgAEBAwIGAQMCBgQMvAb8aXsGihIwCBgQMCBgEDAgYEDAgIBBwICAAQGDgAEBAwIGBAwCBgQMCLiQl0t/nMi+Aq63q5LtK+CcdTVsXwEXnlbG9hVwwroatq+A15321r+MfQU8c92z/zn2FfDx6859KbrtK+DnFSbRsH0FPHPdxV+Z1H0FvFZjGravgB+3bvUvRPV9x5ftiWu8P3rSl6PovgLeefHIr2jfcvsKeOmWNGxfAdeuSMP2FXDtfjRsXwHXLkfD9hXwXWf1Zuy74JsRcJkfen4I21fAtWvRsH0FXLsTDdtXwLX/tylg+wq4dh4atq+AC/+C6hdp+wq49k82AdtXwLWT0LB9BVw7Bg0331fAAravgK3rzTvRjDcv4IQANNx2XwEL2L4Ctq4HcZYZDzKsG/Oh13DDfQUsYPsK2LoeyilmPNSwrkezb91HE7CA7Stg63pAjz/jAVsH7ENs3+rPOLoN3OST3TbgbvuOVhu3+lg3bLjhvm8Bf9u+d/B7Xc/reTOed/R55j+/PXf7QNs3P+Dsx264bqsHb7vvaPKLR891+zy7gJMfvu26TR6/874j/gTN67WvgA3sCB5t7YBTD6Fe+3YJOO8c1s0+iH0FLGCPExRw0lGsm30W+34ccMZprJt9HPsKWMD2DQ24+oGsm30i+14OuO6ZrJt9KPsKGPs2CLjisaybfS773hZwrZNZN/to9r034JUPV+V9upt9Hxpwle981s0+nX33B7z++aybfUD7Hhnwakf0y1X2De17QMDL3tG62Ze072EBL3hN62bf074HB7za/0asm31S+54b8Nyz+vacfVX7nhLwIpe1bvZt7XtiwNPva93sC9v39IAnXtm62Xe274MCnnJr62Y3bN89AT9tX/d5efdn90st+OWwbwmjxNGtm92wfecE/OHpj73+2a+PfVsHfOoG1s1u2L5LBPyvJe4Z4/AXxL4CftAk1s1u2L4rBvyfYa6c585/zqyG7RsS8MWR/hrspr/M+g3bt3zAt85s2uyM7Vsy4KM2Nk92w864bsB3zmyY7IydrkbA+za2SnbDjlYp4OuXNkZ2yU5UO2BAwICAQcCAgAEBg4ABAQMCBgQMAgYEDAgYEDAIGBAwIGDoFPCP7TNQlIBBwICAAQGDgAEBAwIGBAwCBgQMCBgEDAgYEDAgYBAwIGBAwICAQcCAgAEBg4ABAQMCBgQMAgYEDAgYePULL1pwLXK+RKYAAAAASUVORK5CYII=" alt="全面画像のサンプル">
+<p class="image__caption">2026.08 下北沢(fit: cover)</p>
+</section>
+<section class="slide slide--image" data-index="24" data-fit="contain">
+<img class="image__img" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0MDAgMTIwIiB3aWR0aD0iNDAwIiBoZWlnaHQ9IjEyMCIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTYiPgogIDxyZWN0IHg9IjEwIiB5PSI0MCIgd2lkdGg9IjkwIiBoZWlnaHQ9IjQwIiByeD0iNiIgZmlsbD0iI2Y1ZjVmNSIgc3Ryb2tlPSIjMWYxZjFmIi8+CiAgPHRleHQgeD0iNTUiIHk9IjY1IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5PU0M8L3RleHQ+CiAgPHJlY3QgeD0iMTU1IiB5PSI0MCIgd2lkdGg9IjkwIiBoZWlnaHQ9IjQwIiByeD0iNiIgZmlsbD0iI2Y1ZjVmNSIgc3Ryb2tlPSIjMWYxZjFmIi8+CiAgPHRleHQgeD0iMjAwIiB5PSI2NSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+QmlxdWFkPC90ZXh0PgogIDxyZWN0IHg9IjMwMCIgeT0iNDAiIHdpZHRoPSI5MCIgaGVpZ2h0PSI0MCIgcng9IjYiIGZpbGw9IiNmNWY1ZjUiIHN0cm9rZT0iIzFmMWYxZiIvPgogIDx0ZXh0IHg9IjM0NSIgeT0iNjUiIHRleHQtYW5jaG9yPSJtaWRkbGUiPk91dDwvdGV4dD4KICA8cGF0aCBkPSJNMTAwIDYwIEgxNTAgTTI0NSA2MCBIMjk1IiBzdHJva2U9IiNlODU5MGMiIHN0cm9rZS13aWR0aD0iMyIvPgogIDxwYXRoIGQ9Ik0xNTAgNjAgbC04IC01IHYxMCB6IE0yOTUgNjAgbC04IC01IHYxMCB6IiBmaWxsPSIjZTg1OTBjIi8+Cjwvc3ZnPgo=" alt="全面画像のサンプル">
+<p class="image__caption">全面画像ページ(fit: contain)</p>
 </section>
 </main>
 <script id="viewer-js">
@@ -895,6 +1383,22 @@ const separator = `
       else hi = mid;
     }
     return lo;
+  }
+
+  // How far content exceeds its box (scroll size vs client size), ignoring sub-pixel rounding.
+  // Returns null when it fits.
+  function overflowExcess(scrollW, clientW, scrollH, clientH) {
+    var dx = Math.round((scrollW || 0) - (clientW || 0));
+    var dy = Math.round((scrollH || 0) - (clientH || 0));
+    if (dx <= 1 && dy <= 1) return null;
+    return { dx: Math.max(dx, 0), dy: Math.max(dy, 0) };
+  }
+
+  // Combines overflow results (null = fits), keeping the largest excess per axis.
+  function mergeOverflow(a, b) {
+    if (!a) return b || null;
+    if (!b) return a;
+    return { dx: Math.max(a.dx, b.dx), dy: Math.max(a.dy, b.dy) };
   }
 
   // Wheel delta in px along the dominant axis (positive = down/right = next).
@@ -1029,6 +1533,8 @@ const separator = `
     formatHash: formatHash,
     computeFit: computeFit,
     fitLargest: fitLargest,
+    overflowExcess: overflowExcess,
+    mergeOverflow: mergeOverflow,
     normalizeWheelDelta: normalizeWheelDelta,
     createWheelGesture: createWheelGesture,
     keyAction: keyAction
@@ -1137,6 +1643,8 @@ const separator = `
     var lastScreenX = null;
     var lastScreenY = null;
     var wheel = createWheelGesture();
+    var overflowReady = false;
+    var overflowTimers = {};
 
     injectPageNumbers();
 
@@ -1177,9 +1685,17 @@ const separator = `
     bindEvents();
 
     // Measure after fonts are ready (4.10, 5.7). Force style/layout first so font loads start.
+    // Images change the layout too: each slide is checked again when its images finish loading.
     void list.offsetHeight;
-    whenFontsReady().then(fitAllTakahashi);
-    Promise.all([whenFontsReady(), whenLoaded()]).then(checkOverflow);
+    watchImages();
+    whenFontsReady().then(function () {
+      fitAllTakahashi();
+      overflowReady = true;
+      checkAllOverflow();
+    });
+    whenLoaded().then(function () {
+      if (overflowReady) checkAllOverflow();
+    });
 
     window.cvSlidesViewer = {
       go: go,
@@ -1424,29 +1940,89 @@ const separator = `
       });
     }
 
-    function checkOverflow() {
-      var found = [];
-      withMeasuring(slides, function () {
-        slides.forEach(function (slide, i) {
-          if (slide.classList.contains("slide--takahashi")) return;
-          var body = slide.querySelector(".slide__body");
-          if (!body) return;
-          var dy = body.scrollHeight - body.clientHeight;
-          var dx = body.scrollWidth - body.clientWidth;
-          if (dy > 1 || dx > 1) found.push({ index: i, dy: Math.max(dy, 0), dx: Math.max(dx, 0) });
-        });
+    // Content pages only: image pages never overflow, Takahashi text is fitted, code sample
+    // pages scroll. Code lines are clipped by their own box, and columns / image figures can be
+    // squeezed below their content, so those are measured too.
+    function measureOverflow(slide) {
+      if (slide.classList.contains("slide--takahashi") || slide.classList.contains("slide--image")) {
+        return null;
+      }
+      var body = slide.querySelector(".slide__body");
+      if (!body) return null;
+      var result = overflowExcess(body.scrollWidth, body.clientWidth, body.scrollHeight, body.clientHeight);
+      var code = false;
+      each(body.querySelectorAll("pre, .column, .figure--image"), function (node) {
+        var r = overflowExcess(node.scrollWidth, node.clientWidth, node.scrollHeight, node.clientHeight);
+        if (r && node.tagName === "PRE") code = true;
+        result = mergeOverflow(result, r);
       });
-      found.forEach(function (f) {
-        var thumb = thumbs[f.index];
-        var mark = el("span", "viewer__thumb-warn");
+      if (result) result.code = code;
+      return result;
+    }
+
+    function checkSlideOverflow(i) {
+      var result = null;
+      withMeasuring([slides[i]], function () {
+        result = measureOverflow(slides[i]);
+      });
+      setOverflowMark(i, result);
+    }
+
+    function checkAllOverflow() {
+      var results = [];
+      withMeasuring(slides, function () {
+        results = slides.map(measureOverflow);
+      });
+      results.forEach(function (result, i) {
+        setOverflowMark(i, result);
+      });
+    }
+
+    // Adds or removes the ⚠ mark; warns on the console when a slide starts to overflow.
+    function setOverflowMark(i, result) {
+      var thumb = thumbs[i];
+      var mark = thumb.frame.querySelector(".viewer__thumb-warn");
+      if (!result) {
+        if (mark) mark.parentNode.removeChild(mark);
+        thumb.item.classList.remove("is-overflow");
+        return;
+      }
+      var detail = "縦 " + result.dy + "px / 横 " + result.dx + "px";
+      var what = result.code ? "内容(コード片の行を含む)" : "内容";
+      if (!mark) {
+        mark = el("span", "viewer__thumb-warn");
         mark.textContent = "⚠︎";
-        mark.title = "内容がはみ出しています";
-        thumb.item.classList.add("is-overflow");
         thumb.frame.appendChild(mark);
+        thumb.item.classList.add("is-overflow");
         console.warn(
-          "[cv_slides] スライド " + (f.index + 1) + ": 内容が本文領域からはみ出しています" +
-            "(縦 " + f.dy + "px / 横 " + f.dx + "px)"
+          "[cv_slides] スライド " + (i + 1) + ": " + what + "が本文領域からはみ出しています(" + detail + ")"
         );
+      }
+      mark.title = what + "がはみ出しています(" + detail + ")";
+    }
+
+    function scheduleOverflowCheck(i) {
+      if (!overflowReady) return; // the first full check runs once fonts are ready
+      clearTimeout(overflowTimers[i]);
+      overflowTimers[i] = setTimeout(function () {
+        delete overflowTimers[i];
+        checkSlideOverflow(i);
+      }, 30);
+    }
+
+    // Images that are still loading re-check their slide when they finish (or fail).
+    function watchImages() {
+      slides.forEach(function (slide, i) {
+        each(slide.querySelectorAll("img"), function (img) {
+          if (img.complete) return;
+          var done = function () {
+            img.removeEventListener("load", done);
+            img.removeEventListener("error", done);
+            scheduleOverflowCheck(i);
+          };
+          img.addEventListener("load", done);
+          img.addEventListener("error", done);
+        });
       });
     }
 

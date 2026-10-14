@@ -31,6 +31,19 @@
   --size-author: 32px;
   --size-meta: 28px;
   --size-page-number: 24px;
+  --size-image-caption: 32px;
+
+  /* Code blocks keep a light panel on every page, including inverse pages (do not invert
+     code: the highlight theme github-light is made for a light background). */
+  --color-code-block-bg: #f5f5f5;
+  --color-code-block-fg: #1f1f1f;
+  --color-code-block-muted: #707070;
+
+  /* Full-screen image page (7.7): letterbox (fit: contain) uses the slide background (4.12);
+     a dark design sets this to black. Then the band behind overlaid text. */
+  --color-image-bg: var(--color-bg);
+  --color-overlay-bg: rgba(0, 0, 0, 0.5);
+  --color-overlay-fg: #ffffff;
 
   background: var(--color-bg);
   color: var(--color-fg);
@@ -42,7 +55,8 @@
   font-kerning: normal;
 }
 
-/* Page variant: inverse (8.7). Swaps background and foreground. */
+/* Page variant: inverse (8.7). Swaps background and foreground. Code blocks keep their light
+   panel (--color-code-block-*), so highlighted code is never inverted. */
 .slide.slide--class-inverse {
   --color-bg: #1f1f1f;
   --color-fg: #ffffff;
@@ -119,6 +133,7 @@
   font-size: var(--size-code);
   line-height: 1.5;
   white-space: pre;
+  tab-size: 4;
 }
 
 .slide pre code {
@@ -192,8 +207,11 @@
 
 .title__icon {
   order: 1;
+  display: block;
+  flex: 0 0 auto;
   width: 64px;
   height: 64px;
+  max-width: none;
   margin-right: 20px;
   border-radius: 50%;
   object-fit: cover;
@@ -303,18 +321,64 @@
   border-top: 2px solid var(--color-muted);
 }
 
-/* Block elements (images, code, columns) get 32px around them. Details: later blocks. */
+/* Flow containers: the body and each column are flex columns so that an image can take the
+   remaining height (7.4). Only image figures (and columns holding one) may shrink; everything
+   else keeps its content height, so real overflow still shows up and is reported (5.7). */
+.slide__body,
+.column {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+
+.slide__body > *,
+.column > * {
+  flex: 0 0 auto;
+}
+
+.slide__body > table,
+.column > table {
+  align-self: flex-start;
+}
+
+.slide__body > .figure--image,
+.column > .figure--image,
+.slide__body > .columns:has(.figure--image) {
+  flex-shrink: 1;
+  min-height: 0;
+}
+
+/* Block elements (images, code, columns, block math) get 32px around them (7.4). */
 .slide__body .figure,
 .slide__body .columns,
+.slide__body .math--block,
 .slide__body > pre {
   margin: 32px 0;
 }
 
-.slide__body > :first-child {
+/* Flex items do not collapse margins. Every top margin in the body (h3, blocks, hr) is at least
+   as large as any bottom margin, so dropping the bottom margin before them gives the same gaps
+   as collapsed block flow. */
+.slide__body > :has(+ :is(h3, .figure, .columns, .math--block, pre, hr)),
+.column > :has(+ :is(h3, .figure, .math--block, pre, hr)) {
+  margin-bottom: 0;
+}
+
+.slide__body > :first-child,
+.column > :first-child {
   margin-top: 0;
 }
 
+/* A flex item does not collapse its children's margins either: the last item's margin would
+   add to the list's own bottom margin. (The first item's top margin used to collapse into the
+   same offset, so it stays.) */
+.slide__body > :is(ul, ol) > li:last-child,
+.column > :is(ul, ol) > li:last-child {
+  margin-bottom: 0;
+}
+
 .slide__body > :last-child,
+.column > :last-child,
 .slide__body li > :last-child,
 .slide__body blockquote > :last-child {
   margin-bottom: 0;
@@ -322,32 +386,158 @@
 
 .figure__caption {
   font-size: var(--size-caption);
+  font-style: normal;
   line-height: 1.4;
   color: var(--color-muted);
 }
 
+/* ---- Image in content: largest size that fits the remaining height, never upscaled, centered.
+   An explicit width from the markup (style="width: 60%") wins over the natural size. ---- */
+
 .figure--image {
-  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+}
+
+.figure--image > img {
+  display: block;
+  flex: 0 1 auto;
+  min-height: 0;
+  max-width: 100%;
+  object-fit: contain;
 }
 
 .figure--image .figure__caption {
+  flex: 0 0 auto;
   margin-top: 12px;
   text-align: center;
 }
 
-.figure--code .figure__caption {
-  font-family: var(--font-mono);
+/* Missing / remote / unsupported image (4.7). */
+.figure__missing {
+  box-sizing: border-box;
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 60%;
+  min-height: 240px;
+  padding: 32px;
+  border: 3px dashed var(--color-muted);
+  color: var(--color-muted);
+  font-size: var(--size-caption);
+  line-height: 1.4;
+  text-align: center;
+  overflow-wrap: anywhere;
 }
+
+/* ---- Code (4.8, 7.4): full body width, no wrapping, overflow clipped and reported. ---- */
+
+.figure--code {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  min-width: 0;
+}
+
+/* File name as a tab on top of the code panel. */
+.figure--code > .figure__caption {
+  align-self: flex-start;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 8px 24px 4px;
+  overflow: hidden;
+  background: var(--color-code-block-bg);
+  color: var(--color-code-block-muted);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Shiki sets the theme colors inline. github-light's background (#fff) equals the slide
+   background, so this design gives it the slightly darker code panel (7.4); the token colors
+   are unchanged (like GitHub's own code blocks). Other themes keep their inline colors. */
+.slide pre.shiki.github-light {
+  background-color: var(--color-code-block-bg) !important;
+}
+
+/* No highlighting: the design's code colors. */
+.slide pre.shiki.plain {
+  background-color: var(--color-code-block-bg);
+  color: var(--color-code-block-fg);
+}
+
+/* One grid row per line: highlighted lines get a full-width tint. Whitespace-only text between
+   the line spans is not rendered in a grid container. */
+.slide pre.shiki > code {
+  display: grid;
+  width: max-content;
+  min-width: 100%;
+  font-size: inherit;
+}
+
+.slide pre.shiki .line {
+  display: block;
+  min-height: 1.5em;
+  margin: 0 -32px;
+  padding: 0 32px;
+}
+
+.slide pre.shiki .line.is-highlighted {
+  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+}
+
+.figure--line-numbers pre.shiki > code {
+  counter-reset: line;
+}
+
+.figure--line-numbers pre.shiki .line::before {
+  counter-increment: line;
+  content: counter(line);
+  display: inline-block;
+  width: 2ch;
+  margin-right: 1.5ch;
+  text-align: right;
+  opacity: 0.4;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* ---- Columns (4.9): 64px gap, width ratio from --col-ratio, top aligned. Columns stretch to
+   the row height (invisible: no backgrounds) so an image inside can fit the remaining height;
+   content still starts at the top of each column. ---- */
 
 .columns {
   display: flex;
-  align-items: flex-start;
+  align-items: stretch;
   gap: 64px;
 }
 
 .column {
   flex: var(--col-ratio, 1) 1 0%;
   min-width: 0;
+}
+
+/* ---- Math (MathML from KaTeX): same size as the surrounding text ---- */
+
+.slide math {
+  font-size: 1em;
+}
+
+.math--block {
+  max-width: 100%;
+  text-align: center;
+}
+
+.math--block > math {
+  display: block math;
+  margin: 0 auto;
+}
+
+.slide .math-error {
+  color: var(--color-accent);
 }
 
 /* ---- Takahashi page (7.5): font size is fitted by the viewer up to --takahashi-max ---- */
@@ -367,6 +557,57 @@
   white-space: nowrap;
 }
 
+/* ---- Full-screen image page (7.7): no .slide__inner, the image covers the whole canvas ---- */
+
+.slide--image {
+  background: var(--color-image-bg);
+}
+
+.slide--image > .image__img {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  object-fit: cover;
+}
+
+.slide--image[data-fit="contain"] > .image__img {
+  object-fit: contain;
+}
+
+/* Image not found: the placeholder box is centered on the canvas. */
+.slide--image > .figure--missing {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  justify-content: center;
+}
+
+.slide--image .figure__missing {
+  border-color: var(--color-overlay-fg);
+  color: var(--color-overlay-fg);
+}
+
+/* Short text bottom-left; the band sits behind the text only. The text itself starts at
+   left 96px / bottom 64px, the band's padding extends outside that. */
+.image__caption {
+  position: absolute;
+  left: calc(var(--margin-x) - 0.5em);
+  bottom: calc(var(--margin-bottom) - 0.25em);
+  max-width: calc(100% - var(--margin-x) * 2);
+  margin: 0;
+  padding: 0.25em 0.5em;
+  background: var(--color-overlay-bg);
+  color: var(--color-overlay-fg);
+  font-size: var(--size-image-caption);
+  line-height: 1.4;
+}
+
 /* ---- Page number (5.4, Q33): injected by the viewer, not on title pages ---- */
 
 .slide__page-number {
@@ -378,4 +619,12 @@
   color: var(--color-muted);
   font-variant-numeric: tabular-nums;
   pointer-events: none;
+}
+
+.slide--image .slide__page-number {
+  right: calc(var(--margin-x) - 0.5em);
+  bottom: calc(20px - 0.3em);
+  padding: 0.3em 0.5em;
+  background: var(--color-overlay-bg);
+  color: var(--color-overlay-fg);
 }

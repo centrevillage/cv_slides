@@ -115,6 +115,14 @@ export function splitFrontMatter(src: string, reporter: Reporter): SplitFrontMat
 
 export type YamlParser = (text: string) => unknown;
 
+/** 1-based file line of a top-level front matter key (1 when not found). */
+export function frontMatterKeyLine(yamlText: string, key: string): number {
+  // Front matter starts at line 2 (line 1 is the opening ---).
+  const lines = yamlText.split('\n');
+  const i = lines.findIndex((l) => l.startsWith(`${key}:`) || l.startsWith(`${key} :`));
+  return i < 0 ? 1 : i + 2;
+}
+
 export function parseFrontMatter(
   yamlText: string | null,
   reporter: Reporter,
@@ -123,12 +131,7 @@ export function parseFrontMatter(
   const result: FrontMatter = { page_number: true };
   if (yamlText === null) return result;
 
-  // Front matter starts at line 2 (line 1 is the opening ---).
-  const keyLine = (key: string): number => {
-    const lines = yamlText.split('\n');
-    const i = lines.findIndex((l) => l.startsWith(`${key}:`) || l.startsWith(`${key} :`));
-    return i < 0 ? 1 : i + 2;
-  };
+  const keyLine = (key: string): number => frontMatterKeyLine(yamlText, key);
 
   let data: unknown;
   try {
@@ -330,7 +333,7 @@ export function isH1Only(source: string): boolean {
 export function analyzeSlide(raw: RawSlide, reporter: Reporter): Slide {
   const { directive, source } = parseDirective(raw, reporter);
   const type: PageType = directive.page ?? (isH1Only(source) ? 'takahashi' : 'content');
-  if (type === 'code' || type === 'image') {
+  if (type === 'code') {
     reporter.warn(`未実装のページ種別です(page: ${type})。コンテンツページとして表示します`, {
       line: raw.line,
       slide: raw.index,

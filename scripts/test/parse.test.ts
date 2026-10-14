@@ -25,7 +25,7 @@ function raw(source: string, line = 1, index = 0): RawSlide {
 }
 
 test('normalizeSource strips BOM and normalizes CRLF', () => {
-  assert.equal(normalizeSource('﻿a\r\nb\rc\n'), 'a\nb\nc\n');
+  assert.equal(normalizeSource('\uFEFFa\r\nb\rc\n'), 'a\nb\nc\n');
 });
 
 test('front matter: valid keys, dates stay strings, defaults', () => {
@@ -231,12 +231,15 @@ test('H1 shorthand: only H1 lines make a takahashi page', () => {
   assert.equal(analyzeSlide(raw('<!-- page: content -->\n# a'), reporter).type, 'content');
 });
 
-test('code and image page types warn as not implemented', () => {
+test('code page type warns as not implemented; image page does not', () => {
   const reporter = new Reporter('t.md');
   const slide = analyzeSlide(raw('<!-- page: code -->\n## x'), reporter);
   assert.equal(slide.type, 'code');
   assert.equal(reporter.warningCount, 1);
   assert.match(reporter.messages[0]?.text ?? '', /未実装/);
+  const image = analyzeSlide(raw('<!-- page: image -->\n![a](b.png)'), reporter);
+  assert.equal(image.type, 'image');
+  assert.equal(reporter.warningCount, 1);
 });
 
 test('Reporter.format includes file:line and the page number', () => {

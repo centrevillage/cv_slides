@@ -114,3 +114,26 @@ test("keyAction", () => {
   assert.equal(v.keyAction("present", "Home"), "first");
   assert.equal(v.keyAction("present", "End"), "last");
 });
+
+test("the runtime and default design CSS can be inlined into <style>", () => {
+  for (const path of ["../viewer.css", "../../../designs/default/design.css"]) {
+    const css = readFileSync(new URL(path, import.meta.url), "utf8");
+    assert.ok(!/<\/style/i.test(css), path);
+  }
+});
+
+test("overflowExcess ignores sub-pixel rounding and reports each axis", () => {
+  assert.equal(v.overflowExcess(1728, 1728, 818, 818), null);
+  assert.equal(v.overflowExcess(1729, 1728, 819, 818), null); // 1px tolerance
+  assert.deepEqual({ ...v.overflowExcess(1728, 1728, 956, 818) }, { dx: 0, dy: 138 });
+  assert.deepEqual({ ...v.overflowExcess(1960, 1728, 400, 818) }, { dx: 232, dy: 0 });
+  assert.deepEqual({ ...v.overflowExcess(1730.6, 1728, 818, 818) }, { dx: 3, dy: 0 });
+  assert.equal(v.overflowExcess(0, 0, 0, 0), null);
+});
+
+test("mergeOverflow keeps the largest excess per axis", () => {
+  assert.equal(v.mergeOverflow(null, null), null);
+  assert.deepEqual({ ...v.mergeOverflow(null, { dx: 5, dy: 0 }) }, { dx: 5, dy: 0 });
+  assert.deepEqual({ ...v.mergeOverflow({ dx: 0, dy: 9 }, null) }, { dx: 0, dy: 9 });
+  assert.deepEqual({ ...v.mergeOverflow({ dx: 3, dy: 9 }, { dx: 5, dy: 2 }) }, { dx: 5, dy: 9 });
+});

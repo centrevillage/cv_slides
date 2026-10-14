@@ -57,6 +57,22 @@
     return lo;
   }
 
+  // How far content exceeds its box (scroll size vs client size), ignoring sub-pixel rounding.
+  // Returns null when it fits.
+  function overflowExcess(scrollW, clientW, scrollH, clientH) {
+    var dx = Math.round((scrollW || 0) - (clientW || 0));
+    var dy = Math.round((scrollH || 0) - (clientH || 0));
+    if (dx <= 1 && dy <= 1) return null;
+    return { dx: Math.max(dx, 0), dy: Math.max(dy, 0) };
+  }
+
+  // Combines overflow results (null = fits), keeping the largest excess per axis.
+  function mergeOverflow(a, b) {
+    if (!a) return b || null;
+    if (!b) return a;
+    return { dx: Math.max(a.dx, b.dx), dy: Math.max(a.dy, b.dy) };
+  }
+
   // Wheel delta in px along the dominant axis (positive = down/right = next).
   function normalizeWheelDelta(dx, dy, deltaMode) {
     var d = Math.abs(dy) >= Math.abs(dx) ? dy : dx;
@@ -189,6 +205,8 @@
     formatHash: formatHash,
     computeFit: computeFit,
     fitLargest: fitLargest,
+    overflowExcess: overflowExcess,
+    mergeOverflow: mergeOverflow,
     normalizeWheelDelta: normalizeWheelDelta,
     createWheelGesture: createWheelGesture,
     keyAction: keyAction
@@ -297,6 +315,8 @@
     var lastScreenX = null;
     var lastScreenY = null;
     var wheel = createWheelGesture();
+    var overflowReady = false;
+    var overflowTimers = {};
 
     injectPageNumbers();
 
@@ -337,9 +357,17 @@
     bindEvents();
 
     // Measure after fonts are ready (4.10, 5.7). Force style/layout first so font loads start.
+    // Images change the layout too: each slide is checked again when its images finish loading.
     void list.offsetHeight;
-    whenFontsReady().then(fitAllTakahashi);
-    Promise.all([whenFontsReady(), whenLoaded()]).then(checkOverflow);
+    watchImages();
+    whenFontsReady().then(function () {
+      fitAllTakahashi();
+      overflowReady = true;
+      checkAllOverflow();
+    });
+    whenLoaded().then(function () {
+      if (overflowReady) checkAllOverflow();
+    });
 
     window.cvSlidesViewer = {
       go: go,
@@ -584,29 +612,89 @@
       });
     }
 
-    function checkOverflow() {
-      var found = [];
-      withMeasuring(slides, function () {
-        slides.forEach(function (slide, i) {
-          if (slide.classList.contains("slide--takahashi")) return;
-          var body = slide.querySelector(".slide__body");
-          if (!body) return;
-          var dy = body.scrollHeight - body.clientHeight;
-          var dx = body.scrollWidth - body.clientWidth;
-          if (dy > 1 || dx > 1) found.push({ index: i, dy: Math.max(dy, 0), dx: Math.max(dx, 0) });
-        });
+    // Content pages only: image pages never overflow, Takahashi text is fitted, code sample
+    // pages scroll. Code lines are clipped by their own box, and columns / image figures can be
+    // squeezed below their content, so those are measured too.
+    function measureOverflow(slide) {
+      if (slide.classList.contains("slide--takahashi") || slide.classList.contains("slide--image")) {
+        return null;
+      }
+      var body = slide.querySelector(".slide__body");
+      if (!body) return null;
+      var result = overflowExcess(body.scrollWidth, body.clientWidth, body.scrollHeight, body.clientHeight);
+      var code = false;
+      each(body.querySelectorAll("pre, .column, .figure--image"), function (node) {
+        var r = overflowExcess(node.scrollWidth, node.clientWidth, node.scrollHeight, node.clientHeight);
+        if (r && node.tagName === "PRE") code = true;
+        result = mergeOverflow(result, r);
       });
-      found.forEach(function (f) {
-        var thumb = thumbs[f.index];
-        var mark = el("span", "viewer__thumb-warn");
+      if (result) result.code = code;
+      return result;
+    }
+
+    function checkSlideOverflow(i) {
+      var result = null;
+      withMeasuring([slides[i]], function () {
+        result = measureOverflow(slides[i]);
+      });
+      setOverflowMark(i, result);
+    }
+
+    function checkAllOverflow() {
+      var results = [];
+      withMeasuring(slides, function () {
+        results = slides.map(measureOverflow);
+      });
+      results.forEach(function (result, i) {
+        setOverflowMark(i, result);
+      });
+    }
+
+    // Adds or removes the ⚠ mark; warns on the console when a slide starts to overflow.
+    function setOverflowMark(i, result) {
+      var thumb = thumbs[i];
+      var mark = thumb.frame.querySelector(".viewer__thumb-warn");
+      if (!result) {
+        if (mark) mark.parentNode.removeChild(mark);
+        thumb.item.classList.remove("is-overflow");
+        return;
+      }
+      var detail = "縦 " + result.dy + "px / 横 " + result.dx + "px";
+      var what = result.code ? "内容(コード片の行を含む)" : "内容";
+      if (!mark) {
+        mark = el("span", "viewer__thumb-warn");
         mark.textContent = "⚠︎";
-        mark.title = "内容がはみ出しています";
-        thumb.item.classList.add("is-overflow");
         thumb.frame.appendChild(mark);
+        thumb.item.classList.add("is-overflow");
         console.warn(
-          "[cv_slides] スライド " + (f.index + 1) + ": 内容が本文領域からはみ出しています" +
-            "(縦 " + f.dy + "px / 横 " + f.dx + "px)"
+          "[cv_slides] スライド " + (i + 1) + ": " + what + "が本文領域からはみ出しています(" + detail + ")"
         );
+      }
+      mark.title = what + "がはみ出しています(" + detail + ")";
+    }
+
+    function scheduleOverflowCheck(i) {
+      if (!overflowReady) return; // the first full check runs once fonts are ready
+      clearTimeout(overflowTimers[i]);
+      overflowTimers[i] = setTimeout(function () {
+        delete overflowTimers[i];
+        checkSlideOverflow(i);
+      }, 30);
+    }
+
+    // Images that are still loading re-check their slide when they finish (or fail).
+    function watchImages() {
+      slides.forEach(function (slide, i) {
+        each(slide.querySelectorAll("img"), function (img) {
+          if (img.complete) return;
+          var done = function () {
+            img.removeEventListener("load", done);
+            img.removeEventListener("error", done);
+            scheduleOverflowCheck(i);
+          };
+          img.addEventListener("load", done);
+          img.addEventListener("error", done);
+        });
       });
     }
 

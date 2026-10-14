@@ -16,6 +16,7 @@
     <h1 class="title__main">DSP向け言語「Foo」の紹介</h1>
     <p class="title__sub">リアルタイム音声処理をもっと書きやすく</p>
     <div class="title__meta">
+      <img class="title__icon" src="data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='128' height='128'%3E%3Crect width='128' height='128' fill='%231c7ed6'/%3E%3Ctext x='64' y='64' font-family='sans-serif' font-size='56' font-weight='bold' fill='white' text-anchor='middle' dominant-baseline='central'%3Ecv%3C/text%3E%3C/svg%3E" alt="">
       <span class="title__author">centrevillage</span>
       <span class="title__event">Audio Dev Meetup #12</span> <span class="title__date">2026-11-03</span>
     </div>
@@ -105,6 +106,175 @@
         <li>項目 13: 見えないはず</li>
         <li>項目 14: 見えないはず</li>
       </ul>
+    </div>
+  </div>
+</section>
+<section class="slide slide--content" data-index="8">
+  <div class="slide__inner">
+    <h2 class="slide__heading">画像: 本文領域の残りの高さに収める</h2>
+    <div class="slide__body">
+      <p>1600×900 の画像。縦横比を保って縮小し、中央に配置する。</p>
+      <figure class="figure figure--image">
+        <img src="data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1600' height='900' viewBox='0 0 1600 900'%3E%3Crect width='1600' height='900' fill='%234c6ef5'/%3E%3Crect x='8' y='8' width='1584' height='884' fill='none' stroke='white' stroke-width='8'/%3E%3Ctext x='800' y='450' font-family='sans-serif' font-size='128' fill='white' text-anchor='middle' dominant-baseline='central'%3E1600 %C3%97 900%3C/text%3E%3C/svg%3E" alt="青い長方形">
+        <figcaption class="figure__caption">Rev.2 基板(キャプションは画像の下・中央)</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+<section class="slide slide--content" data-index="9">
+  <div class="slide__inner">
+    <h2 class="slide__heading">画像の幅指定(width=40%)</h2>
+    <div class="slide__body">
+      <figure class="figure figure--image">
+        <img src="data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1600' height='900' viewBox='0 0 1600 900'%3E%3Crect width='1600' height='900' fill='%234c6ef5'/%3E%3Crect x='8' y='8' width='1584' height='884' fill='none' stroke='white' stroke-width='8'/%3E%3Ctext x='800' y='450' font-family='sans-serif' font-size='128' fill='white' text-anchor='middle' dominant-baseline='central'%3E1600 %C3%97 900%3C/text%3E%3C/svg%3E" alt="青い長方形" style="width: 40%">
+        <figcaption class="figure__caption">width=40%</figcaption>
+      </figure>
+      <p>幅を指定した画像の後に続く本文。</p>
+    </div>
+  </div>
+</section>
+<section class="slide slide--content" data-index="10">
+  <div class="slide__inner">
+    <h2 class="slide__heading">小さい画像は拡大しない / 画像なし</h2>
+    <div class="slide__body">
+      <figure class="figure figure--image">
+        <img src="data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='480' height='320' viewBox='0 0 480 320'%3E%3Crect width='480' height='320' fill='%232f9e44'/%3E%3Crect x='8' y='8' width='464' height='304' fill='none' stroke='white' stroke-width='8'/%3E%3Ctext x='240' y='160' font-family='sans-serif' font-size='45' fill='white' text-anchor='middle' dominant-baseline='central'%3E480 %C3%97 320%3C/text%3E%3C/svg%3E" alt="緑の長方形">
+        <figcaption class="figure__caption">480×320 のまま</figcaption>
+      </figure>
+      <figure class="figure figure--image figure--missing">
+        <div class="figure__missing">画像なし: img/after.png</div>
+      </figure>
+    </div>
+  </div>
+</section>
+<section class="slide slide--content" data-index="11">
+  <div class="slide__inner">
+    <h2 class="slide__heading">コード片: タイトル・行番号・行ハイライト</h2>
+    <div class="slide__body">
+      <figure class="figure figure--code figure--line-numbers" data-lang="cpp">
+<figcaption class="figure__caption">biquad.cpp</figcaption>
+<pre class="shiki github-light" style="background-color:#fff;color:#24292e" tabindex="0"><code><span class="line"><span style="color:#6A737D">// Direct Form I</span></span>
+<span class="line"><span style="color:#D73A49">float</span><span style="color:#6F42C1"> process</span><span style="color:#24292E">(</span><span style="color:#D73A49">float</span><span style="color:#E36209"> x</span><span style="color:#24292E">) {</span></span>
+<span class="line"><span style="color:#D73A49">  float</span><span style="color:#24292E"> y </span><span style="color:#D73A49">=</span><span style="color:#24292E"> b0 </span><span style="color:#D73A49">*</span><span style="color:#24292E"> x </span><span style="color:#D73A49">+</span><span style="color:#24292E"> b1 </span><span style="color:#D73A49">*</span><span style="color:#24292E"> x1 </span><span style="color:#D73A49">+</span><span style="color:#24292E"> b2 </span><span style="color:#D73A49">*</span><span style="color:#24292E"> x2</span></span>
+<span class="line is-highlighted"><span style="color:#D73A49">          -</span><span style="color:#24292E"> a1 </span><span style="color:#D73A49">*</span><span style="color:#24292E"> y1 </span><span style="color:#D73A49">-</span><span style="color:#24292E"> a2 </span><span style="color:#D73A49">*</span><span style="color:#24292E"> y2;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#24292E">  x2 </span><span style="color:#D73A49">=</span><span style="color:#24292E"> x1; x1 </span><span style="color:#D73A49">=</span><span style="color:#24292E"> x;</span></span>
+<span class="line"><span style="color:#24292E">  y2 </span><span style="color:#D73A49">=</span><span style="color:#24292E"> y1; y1 </span><span style="color:#D73A49">=</span><span style="color:#24292E"> y;</span></span>
+<span class="line"><span style="color:#D73A49">  return</span><span style="color:#24292E"> y </span><span style="color:#D73A49">*</span><span style="color:#005CC5"> 0.5f</span><span style="color:#24292E">;</span></span>
+<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+</figure>
+    </div>
+  </div>
+</section>
+<section class="slide slide--content" data-index="12">
+  <div class="slide__inner">
+    <h2 class="slide__heading">言語指定なしのコード片</h2>
+    <div class="slide__body">
+      <p>ハイライトしない(デザインのコード用の色)。</p>
+      <figure class="figure figure--code">
+<pre class="shiki plain"><code><span class="line">$ npm run build -- slides/talk.md</span>
+<span class="line">build: dist/talk.html (12 slides, 1.4 MB)</span>
+<span class="line">warn: スライド 7: 画像が 2MB を超えています &lt;img/live.jpg&gt;</span></code></pre>
+</figure>
+      <p>コード片の後の本文。</p>
+    </div>
+  </div>
+</section>
+<section class="slide slide--content" data-index="13">
+  <div class="slide__inner">
+    <h2 class="slide__heading">2列: コードと縦長の画像</h2>
+    <div class="slide__body">
+      <div class="columns columns--2">
+<div class="column" style="--col-ratio: 2">
+<h3>Before</h3>
+<ul>
+<li>消費電力 120mA</li>
+<li>ノイズ多め</li>
+</ul>
+<figure class="figure figure--code" data-lang="cpp">
+<figcaption class="figure__caption">main.cpp</figcaption>
+<pre class="shiki github-light" style="background-color:#fff;color:#24292e" tabindex="0"><code><span class="line"><span style="color:#6F42C1">setup</span><span style="color:#24292E">();</span></span>
+<span class="line"><span style="color:#D73A49">while</span><span style="color:#24292E"> (</span><span style="color:#005CC5">true</span><span style="color:#24292E">) </span><span style="color:#6F42C1">loop</span><span style="color:#24292E">();</span></span></code></pre>
+</figure>
+</div>
+<div class="column" style="--col-ratio: 1">
+<h3>After</h3>
+<figure class="figure figure--image">
+<img src="data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='1200' viewBox='0 0 600 1200'%3E%3Crect width='600' height='1200' fill='%23e8590c'/%3E%3Crect x='8' y='8' width='584' height='1184' fill='none' stroke='white' stroke-width='8'/%3E%3Ctext x='300' y='600' font-family='sans-serif' font-size='85' fill='white' text-anchor='middle' dominant-baseline='central'%3E600 %C3%97 1200%3C/text%3E%3C/svg%3E" alt="縦長の画像">
+<figcaption class="figure__caption">Rev.2(600×1200)</figcaption>
+</figure>
+</div>
+</div>
+    </div>
+  </div>
+</section>
+<section class="slide slide--content" data-index="14">
+  <div class="slide__inner">
+    <h2 class="slide__heading">3列</h2>
+    <div class="slide__body">
+      <p>列分割の前に本文を置ける。</p>
+      <div class="columns columns--3">
+<div class="column" style="--col-ratio: 1">
+<figure class="figure figure--image">
+<img src="data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1600' height='900' viewBox='0 0 1600 900'%3E%3Crect width='1600' height='900' fill='%234c6ef5'/%3E%3Crect x='8' y='8' width='1584' height='884' fill='none' stroke='white' stroke-width='8'/%3E%3Ctext x='800' y='450' font-family='sans-serif' font-size='128' fill='white' text-anchor='middle' dominant-baseline='central'%3E1600 %C3%97 900%3C/text%3E%3C/svg%3E" alt="青い長方形">
+<figcaption class="figure__caption">列幅に合わせる</figcaption>
+</figure>
+</div>
+<div class="column" style="--col-ratio: 1">
+<figure class="figure figure--code" data-lang="js">
+<pre class="shiki github-light" style="background-color:#fff;color:#24292e" tabindex="0"><code><span class="line"><span style="color:#D73A49">const</span><span style="color:#005CC5"> sr</span><span style="color:#D73A49"> =</span><span style="color:#005CC5"> 48000</span><span style="color:#24292E">;</span></span></code></pre>
+</figure>
+</div>
+<div class="column" style="--col-ratio: 1">
+<ul>
+<li>3列まで</li>
+<li>上揃え</li>
+</ul>
+</div>
+</div>
+      <p>列分割の後の本文。</p>
+    </div>
+  </div>
+</section>
+<section class="slide slide--content" data-index="15">
+  <div class="slide__inner">
+    <h2 class="slide__heading">数式(MathML)</h2>
+    <div class="slide__body">
+      <p>RC ローパスのカットオフ周波数は <span class="math math--inline"><math><semantics><mrow><msub><mi>f</mi><mi>c</mi></msub><mo>=</mo><mfrac><mn>1</mn><mrow><mn>2</mn><mi>π</mi><mi>R</mi><mi>C</mi></mrow></mfrac></mrow><annotation encoding="application/x-tex">f_c = \frac{1}{2\pi RC}</annotation></semantics></math></span> で求まる。</p>
+      <div class="math math--block"><math display="block"><semantics><mrow><mi>y</mi><mo stretchy="false">[</mo><mi>n</mi><mo stretchy="false">]</mo><mo>=</mo><munderover><mo>∑</mo><mrow><mi>k</mi><mo>=</mo><mn>0</mn></mrow><mi>N</mi></munderover><msub><mi>b</mi><mi>k</mi></msub><mi>x</mi><mo stretchy="false">[</mo><mi>n</mi><mo>−</mo><mi>k</mi><mo stretchy="false">]</mo><mo>−</mo><munderover><mo>∑</mo><mrow><mi>k</mi><mo>=</mo><mn>1</mn></mrow><mi>M</mi></munderover><msub><mi>a</mi><mi>k</mi></msub><mi>y</mi><mo stretchy="false">[</mo><mi>n</mi><mo>−</mo><mi>k</mi><mo stretchy="false">]</mo></mrow><annotation encoding="application/x-tex">y[n] = \sum_{k=0}^{N} b_k x[n-k] - \sum_{k=1}^{M} a_k y[n-k]</annotation></semantics></math></div>
+      <p>書き間違えた数式: <span class="math math--inline"><code class="math-error">\frac{1</code></span></p>
+    </div>
+  </div>
+</section>
+<section class="slide slide--image" data-index="16" data-fit="cover">
+<img class="image__img" src="data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='2400' height='1200' viewBox='0 0 2400 1200'%3E%3Cdefs%3E%3ClinearGradient id='s' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%231b2a49'/%3E%3Cstop offset='1' stop-color='%23e8590c'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='2400' height='1200' fill='url(%23s)'/%3E%3Cpath d='M0 1200 L0 800 L500 600 L900 820 L1400 520 L1900 780 L2400 640 L2400 1200 Z' fill='%230b1020'/%3E%3Ccircle cx='1700' cy='300' r='120' fill='%23ffd8a8'/%3E%3Ctext x='1200' y='200' font-family='sans-serif' font-size='90' fill='white' text-anchor='middle'%3E2400 %C3%97 1200 cover%3C/text%3E%3Ctext x='60' y='100' font-family='sans-serif' font-size='60' fill='white'%3E%E5%B7%A6%E4%B8%8A%E3%81%AE%E8%A7%92%3C/text%3E%3Ctext x='2340' y='1160' font-family='sans-serif' font-size='60' fill='white' text-anchor='end'%3E%E5%8F%B3%E4%B8%8B%E3%81%AE%E8%A7%92%3C/text%3E%3C/svg%3E" alt="ライブの様子">
+<p class="image__caption">2026.08 下北沢</p>
+</section>
+<section class="slide slide--image" data-index="17" data-fit="contain">
+<img class="image__img" src="data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1200' height='1200' viewBox='0 0 1200 1200'%3E%3Crect width='1200' height='1200' fill='%237048e8'/%3E%3Crect x='8' y='8' width='1184' height='1184' fill='none' stroke='white' stroke-width='8'/%3E%3Ctext x='600' y='600' font-family='sans-serif' font-size='171' fill='white' text-anchor='middle' dominant-baseline='central'%3Econtain%3C/text%3E%3C/svg%3E" alt="正方形の製品写真">
+</section>
+<section class="slide slide--content slide--class-inverse" data-index="18">
+  <div class="slide__inner">
+    <h2 class="slide__heading">反転ページのコード片</h2>
+    <div class="slide__body">
+      <p>コード片は反転せず、明るいパネルのまま表示する。</p>
+      <figure class="figure figure--code figure--line-numbers" data-lang="cpp">
+<figcaption class="figure__caption">gain.cpp</figcaption>
+<pre class="shiki github-light" style="background-color:#fff;color:#24292e" tabindex="0"><code><span class="line"><span style="color:#D73A49">float</span><span style="color:#6F42C1"> gain</span><span style="color:#24292E">(</span><span style="color:#D73A49">float</span><span style="color:#E36209"> x</span><span style="color:#24292E">) {</span></span>
+<span class="line is-highlighted"><span style="color:#D73A49">  return</span><span style="color:#24292E"> x </span><span style="color:#D73A49">*</span><span style="color:#005CC5"> 0.5f</span><span style="color:#24292E">;</span></span>
+<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+</figure>
+    </div>
+  </div>
+</section>
+<section class="slide slide--content" data-index="19">
+  <div class="slide__inner">
+    <h2 class="slide__heading">はみ出すコード行(警告の確認用)</h2>
+    <div class="slide__body">
+      <figure class="figure figure--code">
+<pre class="shiki plain"><code><span class="line">short line</span>
+<span class="line">this line is much too long for the slide and must be clipped instead of wrapped, and reported as overflow</span></code></pre>
+</figure>
     </div>
   </div>
 </section>

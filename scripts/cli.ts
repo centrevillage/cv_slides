@@ -3,6 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { buildDeck, type Design, type Runtime } from './build/render.ts';
+import { createCodeHighlighter, type CodeHighlighter } from './build/highlight.ts';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 
@@ -63,9 +64,11 @@ function loadDesign(id: string): Design | null {
   if (!Array.isArray(classes) || !classes.every((c): c is string => typeof c === 'string')) {
     throw new Error('design.json の classes は文字列の配列にしてください');
   }
+  const highlightTheme = (meta as { highlightTheme?: unknown }).highlightTheme ?? 'github-light';
+  if (typeof highlightTheme !== 'string') throw new Error('design.json の highlightTheme は文字列にしてください');
   const cssFile = path.join(dir, 'design.css');
   if (!existsSync(cssFile)) throw new Error(`design.css がありません(${rel(cssFile)})`);
-  return { id, css: readText(cssFile), classes };
+  return { id, css: readText(cssFile), classes, highlightTheme };
 }
 
 function resolveSlidePath(arg: string): string {
@@ -92,13 +95,20 @@ interface Options {
 }
 
 /** Builds one slide file. Returns true on success. */
-function buildFile(mdFile: string, runtime: Runtime, opts: Options): boolean {
+async function buildFile(
+  mdFile: string,
+  runtime: Runtime,
+  highlighter: CodeHighlighter,
+  opts: Options,
+): Promise<boolean> {
   const outFile = opts.out !== undefined ? path.resolve(opts.out) : defaultOutPath(mdFile);
   if (outFile === mdFile) throw new CliError(`出力先が入力ファイルと同じです: ${rel(outFile)}`);
 
-  const result = buildDeck(readText(mdFile), {
+  const result = await buildDeck(readText(mdFile), {
     file: rel(mdFile),
     baseName: path.parse(mdFile).name,
+    baseDir: path.dirname(mdFile),
+    highlighter,
     ...(opts.design !== undefined ? { design: opts.design } : {}),
     loadDesign,
     runtime,
@@ -131,7 +141,7 @@ function listAllSlides(): string[] {
     .sort();
 }
 
-function main(argv: string[]): number {
+async function main(argv: string[]): Promise<number> {
   let parsed;
   try {
     parsed = parseArgs({
@@ -174,8 +184,9 @@ function main(argv: string[]): number {
       const files = listAllSlides();
       if (files.length === 0) throw new CliError('slides/ にスライドがありません');
       const runtime = loadRuntime();
+      const highlighter = await createCodeHighlighter();
       let failed = 0;
-      for (const file of files) if (!buildFile(file, runtime, opts)) failed++;
+      for (const file of files) if (!(await buildFile(file, runtime, highlighter, opts))) failed++;
       console.log(`全 ${files.length} 件: 成功 ${files.length - failed} 件、失敗 ${failed} 件`);
       return failed > 0 ? 1 : 0;
     }
@@ -185,7 +196,7 @@ function main(argv: string[]): number {
       return 1;
     }
     const mdFile = resolveSlidePath(positionals[0] ?? '');
-    return buildFile(mdFile, loadRuntime(), opts) ? 0 : 1;
+    return (await buildFile(mdFile, loadRuntime(), await createCodeHighlighter(), opts)) ? 0 : 1;
   } catch (e) {
     if (e instanceof CliError) {
       console.error(`エラー: ${e.message}`);
@@ -195,4 +206,4 @@ function main(argv: string[]): number {
   }
 }
 
-process.exitCode = main(process.argv.slice(2));
+process.exitCode = await main(process.argv.slice(2));

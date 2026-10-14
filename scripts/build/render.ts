@@ -1,7 +1,8 @@
-import type { MarkdownIt, Token } from 'markdown-it';
+import type { Env, MarkdownIt, Token } from 'markdown-it';
 import {
   Reporter,
   analyzeSlide,
+  frontMatterKeyLine,
   normalizeSource,
   parseFrontMatter,
   splitFrontMatter,
@@ -9,13 +10,27 @@ import {
   type FrontMatter,
   type Slide,
 } from './parse.ts';
-import { createMarkdown, isImageOnly, isNoteComment, renderBlockInline, splitBlocks, type Block } from './markdown.ts';
+import {
+  createMarkdown,
+  imgTag,
+  isImageOnly,
+  makeEnv,
+  missingFigure,
+  renderBlockInline,
+  resolveImage,
+  splitBlocks,
+  type Block,
+} from './markdown.ts';
+import { ImageEmbedder, type ReadFile } from './assets.ts';
+import { sharedCodeHighlighter, type CodeHighlighter } from './highlight.ts';
 
 export interface Design {
   /** Directory name under designs/ (used for the design-<id> class). */
   id: string;
   css: string;
   classes: string[];
+  /** Shiki theme for code blocks (design.json `highlightTheme`, default github-light). */
+  highlightTheme?: string;
 }
 
 export interface Runtime {
@@ -33,6 +48,12 @@ export interface BuildOptions {
   /** Returns the design, or null when it does not exist. May throw on a broken design. */
   loadDesign: (name: string) => Design | null;
   runtime: Runtime;
+  /** Directory that image paths are relative to (the .md file's directory). Default: cwd. */
+  baseDir?: string;
+  /** File reader for images (for tests). Default: the file system. */
+  readFile?: ReadFile;
+  /** Code highlighter; created once and shared when omitted. */
+  highlighter?: CodeHighlighter;
 }
 
 export interface BuildResult {
@@ -42,12 +63,16 @@ export interface BuildResult {
   slideCount: number;
 }
 
-type RenderedType = 'title' | 'content' | 'takahashi';
+type RenderedType = 'title' | 'content' | 'takahashi' | 'image';
 
 interface Page {
   type: RenderedType;
   classes: string[];
   inner: string;
+  /** False for pages without the .slide__inner wrapper (full-screen image). */
+  wrap?: boolean;
+  /** Extra data-* attributes on <section>. */
+  data?: Record<string, string>;
 }
 
 const DESIGN_NAME = /^[A-Za-z0-9_-]+$/;
@@ -83,10 +108,27 @@ interface Context {
   md: MarkdownIt;
   reporter: Reporter;
   fm: FrontMatter;
+  theme: string;
+  embedder: ImageEmbedder;
+  /** Embedded title page icon (front matter `icon`), or null. */
+  icon: string | null;
 }
 
 function loc(slide: Slide, block?: Block): { line: number; slide: number } {
   return { line: slide.line + (block?.map?.[0] ?? 0), slide: slide.index };
+}
+
+/** markdown-it env for one slide: reports with file lines, embeds images, selects the theme. */
+function slideEnv(ctx: Context, slide: Slide): Env {
+  return makeEnv({
+    report: (level, text, line) => {
+      const where = { line: slide.line + (line ?? 0), slide: slide.index };
+      if (level === 'error') ctx.reporter.error(text, where);
+      else ctx.reporter.warn(text, where);
+    },
+    embedImage: (src) => ctx.embedder.embed(src),
+    theme: ctx.theme,
+  });
 }
 
 function isIgnorableHtml(block: Block): boolean {
@@ -98,6 +140,7 @@ function isIgnorableHtml(block: Block): boolean {
 function titleInner(fields: {
   title: string;
   subtitle: string;
+  icon?: string | null | undefined;
   author?: string | undefined;
   event?: string | undefined;
   date?: string | undefined;
@@ -106,6 +149,7 @@ function titleInner(fields: {
   if (fields.title !== '') out.push(`<h1 class="title__main">${fields.title}</h1>`);
   if (fields.subtitle !== '') out.push(`<p class="title__sub">${fields.subtitle}</p>`);
   const meta: string[] = [];
+  if (fields.icon) meta.push(`<img class="title__icon" src="${escapeHtml(fields.icon)}" alt="">`);
   if (fields.author) meta.push(`<span class="title__author">${escapeHtml(fields.author)}</span>`);
   const eventDate: string[] = [];
   if (fields.event) eventDate.push(`<span class="title__event">${escapeHtml(fields.event)}</span>`);
@@ -115,13 +159,14 @@ function titleInner(fields: {
   return out.join('\n');
 }
 
-function autoTitlePage(fm: FrontMatter): Page {
+function autoTitlePage(fm: FrontMatter, icon: string | null): Page {
   return {
     type: 'title',
     classes: [],
     inner: titleInner({
       title: escapeHtml(fm.title ?? ''),
       subtitle: escapeHtml(fm.subtitle ?? ''),
+      icon,
       author: fm.author,
       event: fm.event,
       date: fm.date,
@@ -130,7 +175,7 @@ function autoTitlePage(fm: FrontMatter): Page {
 }
 
 function explicitTitlePage(ctx: Context, slide: Slide, isFirst: boolean): Page {
-  const blocks = splitBlocks(ctx.md.parse(slide.source, {}));
+  const blocks = splitBlocks(ctx.md.parse(slide.source, slideEnv(ctx, slide)));
   let title: string | null = null;
   let subtitle: string | null = null;
   let ignored: Block | null = null;
@@ -159,7 +204,7 @@ function explicitTitlePage(ctx: Context, slide: Slide, isFirst: boolean): Page {
     inner: titleInner({
       title: title ?? '',
       subtitle: subtitle ?? '',
-      ...(isFirst ? { author: ctx.fm.author, event: ctx.fm.event, date: ctx.fm.date } : {}),
+      ...(isFirst ? { icon: ctx.icon, author: ctx.fm.author, event: ctx.fm.event, date: ctx.fm.date } : {}),
     }),
   };
 }
@@ -167,7 +212,6 @@ function explicitTitlePage(ctx: Context, slide: Slide, isFirst: boolean): Page {
 function warnContentIssues(ctx: Context, slide: Slide, tokens: Token[]): void {
   let depth = 0;
   let deepListWarned = false;
-  let imageWarned = false;
   for (const token of tokens) {
     if (token.type === 'bullet_list_open' || token.type === 'ordered_list_open') {
       depth++;
@@ -180,18 +224,13 @@ function warnContentIssues(ctx: Context, slide: Slide, tokens: Token[]): void {
       }
     } else if (token.type === 'bullet_list_close' || token.type === 'ordered_list_close') {
       depth--;
-    } else if (token.type === 'inline' && !imageWarned && token.children?.some((c) => c.type === 'image')) {
-      imageWarned = true;
-      ctx.reporter.warn('画像の埋め込みはまだ対応していません(パスをそのまま出力します)', {
-        line: slide.line + (token.map?.[0] ?? 0),
-        slide: slide.index,
-      });
     }
   }
 }
 
 function contentPage(ctx: Context, slide: Slide): Page {
-  const tokens = ctx.md.parse(slide.source, {});
+  const env = slideEnv(ctx, slide);
+  const tokens = ctx.md.parse(slide.source, env);
   warnContentIssues(ctx, slide, tokens);
   const blocks = splitBlocks(tokens);
 
@@ -199,7 +238,7 @@ function contentPage(ctx: Context, slide: Slide): Page {
   const firstReal = blocks.findIndex((b) => !isIgnorableHtml(b));
   const first = blocks[firstReal];
   if (first && first.head.type === 'heading_open' && (first.head.tag === 'h1' || first.head.tag === 'h2')) {
-    heading = renderBlockInline(ctx.md, first, {});
+    heading = renderBlockInline(ctx.md, first, env);
     blocks.splice(firstReal, 1);
   }
 
@@ -211,7 +250,7 @@ function contentPage(ctx: Context, slide: Slide): Page {
     }
     bodyTokens.push(...block.tokens);
   }
-  const body = ctx.md.renderer.render(bodyTokens, ctx.md.options, {}).trimEnd();
+  const body = ctx.md.renderer.render(bodyTokens, ctx.md.options, env).trimEnd();
 
   const inner: string[] = [];
   if (heading !== null) inner.push(`<h2 class="slide__heading">${heading}</h2>`);
@@ -220,7 +259,8 @@ function contentPage(ctx: Context, slide: Slide): Page {
 }
 
 function takahashiPage(ctx: Context, slide: Slide): Page {
-  const blocks = splitBlocks(ctx.md.parse(slide.source, {}));
+  const env = slideEnv(ctx, slide);
+  const blocks = splitBlocks(ctx.md.parse(slide.source, env));
   const lines: string[] = [];
   let ignored: Block | null = null;
   for (const block of blocks) {
@@ -232,7 +272,7 @@ function takahashiPage(ctx: Context, slide: Slide): Page {
         if (isImageOnly(inline)) continue;
         inline.children = inline.children.filter((c) => c.type !== 'image');
       }
-      const html = renderBlockInline(ctx.md, block, {}).trim();
+      const html = renderBlockInline(ctx.md, block, env).trim();
       if (html !== '') lines.push(html);
     } else {
       ignored ??= block;
@@ -249,13 +289,90 @@ function takahashiPage(ctx: Context, slide: Slide): Page {
   };
 }
 
+/** Drops leading breaks / whitespace from inline children. */
+function trimLeadingInline(children: Token[]): Token[] {
+  let i = 0;
+  while (i < children.length) {
+    const c = children[i]!;
+    if (c.type === 'softbreak' || c.type === 'hardbreak' || (c.type === 'text' && c.content.trim() === '')) i++;
+    else break;
+  }
+  return children.slice(i);
+}
+
+function imagePage(ctx: Context, slide: Slide): Page {
+  const env = slideEnv(ctx, slide);
+  const blocks = splitBlocks(ctx.md.parse(slide.source, env));
+  let image: string | null = null;
+  let caption: string | null = null;
+  let ignored: Block | null = null;
+  let extraImage: Block | null = null;
+
+  const takeImage = (token: Token, block: Block): void => {
+    const parts = resolveImage(ctx.md, token, env);
+    if (parts.title !== '') {
+      ctx.reporter.warn('全面画像ページでは画像のタイトルは使いません(無視しました)', loc(slide, block));
+    }
+    if (parts.width !== null) {
+      ctx.reporter.warn('全面画像ページでは width は使えません(無視しました)', loc(slide, block));
+    }
+    image = parts.uri === null ? missingFigure(parts.src) : imgTag({ ...parts, width: null }, 'image__img');
+  };
+  const captionFrom = (children: Token[], block: Block): void => {
+    const kept = children.filter((c) => c.type !== 'image');
+    if (kept.length !== children.length) extraImage ??= block;
+    const html = ctx.md.renderer.renderInline(trimLeadingInline(kept), ctx.md.options, env).trim();
+    if (html !== '') caption = html;
+  };
+
+  for (const block of blocks) {
+    if (isIgnorableHtml(block)) continue;
+    const inline = block.tokens.find((t) => t.type === 'inline');
+    const children = trimLeadingInline(inline?.children ?? []);
+    if (image === null && block.head.type === 'figure_image' && block.head.children?.[0]) {
+      takeImage(block.head.children[0], block);
+    } else if (image === null && block.head.type === 'paragraph_open' && children[0]?.type === 'image') {
+      // `![...](...)` followed by text in the same paragraph: the text is the caption.
+      takeImage(children[0], block);
+      captionFrom(children.slice(1), block);
+    } else if (image !== null && caption === null && block.head.type === 'paragraph_open' && inline) {
+      captionFrom(inline.children ?? [], block);
+    } else if (image !== null && block.head.type === 'figure_image') {
+      extraImage ??= block;
+    } else {
+      ignored ??= block;
+    }
+  }
+  if (extraImage) {
+    ctx.reporter.warn('全面画像ページの2枚目以降の画像を無視しました', loc(slide, extraImage));
+  }
+  if (ignored) {
+    ctx.reporter.warn(
+      '全面画像ページに合わない要素を無視しました(画像1枚と、続く段落1つだけを使います)',
+      loc(slide, ignored),
+    );
+  }
+  if (image === null) ctx.reporter.warn('全面画像ページに画像がありません', loc(slide));
+
+  const inner: string[] = [];
+  if (image !== null) inner.push(image);
+  if (caption !== null) inner.push(`<p class="image__caption">${caption}</p>`);
+  return {
+    type: 'image',
+    classes: slide.directive.classes,
+    inner: inner.join('\n'),
+    wrap: false,
+    data: { fit: slide.directive.fit ?? 'cover' },
+  };
+}
+
 function renderSection(page: Page, index: number): string {
   const classes = ['slide', `slide--${page.type}`, ...page.classes.map((c) => `slide--class-${c}`)];
-  return (
-    `<section class="${classes.join(' ')}" data-index="${index}">\n` +
-    `<div class="slide__inner">\n${page.inner}\n</div>\n` +
-    `</section>`
-  );
+  const data = Object.entries(page.data ?? {})
+    .map(([k, v]) => ` data-${k}="${escapeHtml(v)}"`)
+    .join('');
+  const body = page.wrap === false ? (page.inner === '' ? '' : `${page.inner}\n`) : `<div class="slide__inner">\n${page.inner}\n</div>\n`;
+  return `<section class="${classes.join(' ')}" data-index="${index}"${data}>\n${body}</section>`;
 }
 
 // ---------------------------------------------------------------------------
@@ -277,7 +394,7 @@ function resolveDesign(name: string, opts: BuildOptions, reporter: Reporter): De
   }
 }
 
-export function buildDeck(sourceText: string, opts: BuildOptions): BuildResult {
+export async function buildDeck(sourceText: string, opts: BuildOptions): Promise<BuildResult> {
   const reporter = new Reporter(opts.file);
   const src = normalizeSource(sourceText);
   const { yaml, body, bodyLine } = splitFrontMatter(src, reporter);
@@ -290,9 +407,27 @@ export function buildDeck(sourceText: string, opts: BuildOptions): BuildResult {
   const autoTitle = (fm.title ?? '') !== '' && slides[0]?.directive.page !== 'title';
   reporter.pageOffset = autoTitle ? 1 : 0;
 
-  const ctx: Context = { md: createMarkdown(), reporter, fm };
+  const highlighter = opts.highlighter ?? (await sharedCodeHighlighter());
+  const theme = design?.highlightTheme ?? 'github-light';
+  if (design && !highlighter.themes.includes(theme)) {
+    reporter.error(
+      `デザイン ${design.id} のハイライトテーマ "${theme}" には対応していません(${highlighter.themes.join(' / ')})`,
+    );
+  }
+  const embedder = new ImageEmbedder({
+    baseDir: opts.baseDir ?? process.cwd(),
+    ...(opts.readFile ? { readFile: opts.readFile } : {}),
+  });
+  const ctx: Context = { md: createMarkdown(highlighter), reporter, fm, theme, embedder, icon: null };
+  const showsMeta = autoTitle || slides[0]?.directive.page === 'title';
+  if (fm.icon !== undefined && fm.icon !== '' && showsMeta) {
+    const result = embedder.embed(fm.icon);
+    const line = yaml === null ? 1 : frontMatterKeyLine(yaml, 'icon');
+    for (const w of result.warnings) reporter.warn(`アイコン: ${w}`, { line });
+    ctx.icon = result.uri;
+  }
   const pages: Page[] = [];
-  if (autoTitle) pages.push(autoTitlePage(fm));
+  if (autoTitle) pages.push(autoTitlePage(fm, ctx.icon));
   for (const slide of slides) {
     if (design) {
       for (const c of slide.directive.classes) {
@@ -303,6 +438,7 @@ export function buildDeck(sourceText: string, opts: BuildOptions): BuildResult {
     }
     if (slide.type === 'title') pages.push(explicitTitlePage(ctx, slide, pages.length === 0));
     else if (slide.type === 'takahashi') pages.push(takahashiPage(ctx, slide));
+    else if (slide.type === 'image') pages.push(imagePage(ctx, slide));
     else pages.push(contentPage(ctx, slide));
   }
   if (pages.length === 0) reporter.error('スライドが1枚もありません');

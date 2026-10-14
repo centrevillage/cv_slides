@@ -16,7 +16,9 @@ body {
   background: #d4d4d4;
 }
 
-/* ---- Slide canvas: fixed 1920x1080, positioned by the viewer, never resized by designs ---- */
+/* ---- Slide canvas: fixed 1920x1080, positioned by the viewer, never resized by designs ----
+   Every slide (original and thumbnail clone) clips its own content to the canvas in all modes
+   (5.7): overflow clip (hidden as the fallback) plus paint containment from contain: strict. */
 
 .slide,
 .deck > .slide,
@@ -27,6 +29,7 @@ body {
   height: 1080px;
   margin: 0;
   overflow: hidden;
+  overflow: clip;
   contain: strict;
 }
 
@@ -143,7 +146,11 @@ body {
   flex: 1 1 auto;
   min-width: 0;
   aspect-ratio: 16 / 9;
+  /* Each thumbnail clips to its frame. No content-visibility here or on the canvas below: with
+     it, Chrome showed a stale piece of a thumbnail next to the frame, over the list border, at
+     the bottom of the list after a jump (e.g. opening #10 / #24 at 1600x900). */
   overflow: hidden;
+  contain: layout paint;
   background: #fff;
   outline: 1px solid rgba(0, 0, 0, 0.18);
 }
@@ -166,8 +173,6 @@ body {
   transform-origin: 0 0;
   transform: scale(var(--thumb-scale, 0.1));
   pointer-events: none;
-  content-visibility: auto;
-  contain-intrinsic-size: 1920px 1080px;
 }
 
 .viewer__thumb-warn {
