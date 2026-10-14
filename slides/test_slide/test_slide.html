@@ -1240,7 +1240,7 @@ iframe.runner__frame {
 <div class="title__meta">
 <img class="title__icon" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0Ij4KICA8Y2lyY2xlIGN4PSIzMiIgY3k9IjMyIiByPSIzMCIgZmlsbD0iI2U4NTkwYyIvPgogIDxwYXRoIGQ9Ik04IDMyIFEyMCA4IDMyIDMyIFQ1NiAzMiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgo8L3N2Zz4K" alt="">
 <span class="title__author">centrevillage</span>
-<span class="title__event">Audio Dev Meetup</span> <span class="title__date">2026-11-03</span>
+<span class="title__event">Audio Dev Meetup #12</span> <span class="title__date">2026-11-03</span>
 </div>
 </div>
 </section>
@@ -1347,9 +1347,9 @@ iframe.runner__frame {
 <div class="slide__body">
 <figure class="figure figure--code figure--line-numbers" data-lang="cpp">
 <figcaption class="figure__caption">biquad.cpp</figcaption>
-<pre class="shiki github-light" style="background-color:#fff;color:#24292e"><code><span class="line"><span style="color:#D73A49">float</span><span style="color:#6F42C1"> Biquad</span><span style="color:#24292E">::</span><span style="color:#6F42C1">process</span><span style="color:#24292E">(</span><span style="color:#D73A49">float x) {</span></span>
-<span class="line"><span style="color:#6A737D">  // Direct Form I</span></span>
-<span class="line is-highlighted"><span style="color:#D73A49">  float</span><span style="color:#E36209"> y</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> b0</span><span style="color:#D73A49">*</span><span style="color:#24292E">x </span><span style="color:#D73A49">+</span><span style="color:#24292E"> b1</span><span style="color:#D73A49">*</span><span style="color:#24292E">x1 </span><span style="color:#D73A49">+</span><span style="color:#24292E"> b2</span><span style="color:#D73A49">*</span><span style="color:#24292E">x2 </span><span style="color:#D73A49">-</span><span style="color:#24292E"> a1</span><span style="color:#D73A49">*</span><span style="color:#24292E">y1 </span><span style="color:#D73A49">-</span><span style="color:#24292E"> a2</span><span style="color:#D73A49">*</span><span style="color:#24292E">y2;</span></span>
+<pre class="shiki github-light" style="background-color:#fff;color:#24292e"><code><span class="line"><span style="color:#D73A49">float</span><span style="color:#6F42C1"> Biquad</span><span style="color:#24292E">::</span><span style="color:#6F42C1">process</span><span style="color:#24292E">(</span><span style="color:#D73A49">float</span><span style="color:#E36209"> x</span><span style="color:#24292E">) {</span></span>
+<span class="line"><span style="color:#24292E">  // Direct Form I</span></span>
+<span class="line is-highlighted"><span style="color:#24292E">  float y </span><span style="color:#D73A49">=</span><span style="color:#24292E"> b0</span><span style="color:#D73A49">*</span><span style="color:#24292E">x </span><span style="color:#D73A49">+</span><span style="color:#24292E"> b1</span><span style="color:#D73A49">*</span><span style="color:#24292E">x1 </span><span style="color:#D73A49">+</span><span style="color:#24292E"> b2</span><span style="color:#D73A49">*</span><span style="color:#24292E">x2 </span><span style="color:#D73A49">-</span><span style="color:#24292E"> a1</span><span style="color:#D73A49">*</span><span style="color:#24292E">y1 </span><span style="color:#D73A49">-</span><span style="color:#24292E"> a2</span><span style="color:#D73A49">*</span><span style="color:#24292E">y2;</span></span>
 <span class="line"><span style="color:#24292E">  x2 </span><span style="color:#D73A49">=</span><span style="color:#24292E"> x1; x1 </span><span style="color:#D73A49">=</span><span style="color:#24292E"> x; y2 </span><span style="color:#D73A49">=</span><span style="color:#24292E"> y1; y1 </span><span style="color:#D73A49">=</span><span style="color:#24292E"> y;</span></span>
 <span class="line"><span style="color:#D73A49">  return</span><span style="color:#24292E"> y;</span></span>
 <span class="line"><span style="color:#24292E">}</span></span></code></pre>

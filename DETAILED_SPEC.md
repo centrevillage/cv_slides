@@ -268,7 +268,7 @@ title: DSP向け言語「Foo」の紹介
 subtitle: リアルタイム音声処理をもっと書きやすく
 author: centrevillage
 date: 2026-11-03
-event: Audio Dev Meetup #12
+event: "Audio Dev Meetup #12"
 design: default
 ---
 
