@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <!-- E を円で囲む版 -->
+  <circle cx="200" cy="200" r="178" fill="none" stroke="#e8590c" stroke-width="26"/>
+  <g transform="translate(200 200) scale(0.56) translate(-200 -200)">
+  <!-- E: 信号の連鎖 (dataflow chain) -->
+  <path d="M86 200 H314" stroke="#e8590c" stroke-width="22"/>
+  <circle cx="86" cy="200" r="46" fill="#e8590c"/>
+  <circle cx="200" cy="200" r="46" fill="#e8590c"/>
+  <circle cx="314" cy="200" r="34" fill="none" stroke="#e8590c" stroke-width="24"/>
+  </g>
+</svg>

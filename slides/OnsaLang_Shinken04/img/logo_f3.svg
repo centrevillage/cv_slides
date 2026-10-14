@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <!-- F3: 先端が輪(鎖)の音叉 -->
+  <circle cx="118" cy="78" r="38" fill="none" stroke="#e8590c" stroke-width="28"/>
+  <circle cx="282" cy="78" r="38" fill="none" stroke="#e8590c" stroke-width="28"/>
+  <path d="M118 116 V196 a82 82 0 0 0 164 0 V116" fill="none" stroke="#e8590c" stroke-width="44"/>
+  <rect x="178" y="270" width="44" height="96" rx="22" fill="#e8590c"/>
+</svg>

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <!-- A: 音叉 (tuning fork) -->
+  <path d="M118 48 V196 a82 82 0 0 0 164 0 V48" fill="none" stroke="#e8590c" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="177" y="262" width="46" height="100" rx="23" fill="#e8590c"/>
+</svg>

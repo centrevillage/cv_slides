@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <!-- F2 を円で囲む版 -->
+  <circle cx="200" cy="200" r="178" fill="none" stroke="#e8590c" stroke-width="26"/>
+  <g transform="translate(200 200) scale(0.56) translate(-200 -200)">
+  <path d="M136 40 V176" stroke="#e8590c" stroke-width="40" stroke-linecap="round"/>
+  <path d="M264 40 V176" stroke="#e8590c" stroke-width="40" stroke-linecap="round"/>
+  <circle cx="136" cy="236" r="62" fill="none" stroke="#e8590c" stroke-width="34"/>
+  <circle cx="264" cy="236" r="62" fill="none" stroke="#e8590c" stroke-width="34"/>
+  <path d="M200 262 V378" stroke="#e8590c" stroke-width="40" stroke-linecap="round"/>
+  </g>
+</svg>

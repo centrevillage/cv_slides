@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <!-- C: O と波 (ring + wave) -->
+  <defs><clipPath id="in"><circle cx="200" cy="200" r="118"/></clipPath></defs>
+  <circle cx="200" cy="200" r="150" fill="none" stroke="#e8590c" stroke-width="40"/>
+  <path d="M60 200 C 100 110, 150 110, 200 200 S 300 290, 340 200" fill="none" stroke="#e8590c" stroke-width="30" stroke-linecap="round" clip-path="url(#in)"/>
+</svg>

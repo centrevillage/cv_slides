@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <!-- F1: 音叉 + 鎖の柄 -->
+  <path d="M118 40 V150 a82 82 0 0 0 164 0 V40" fill="none" stroke="#e8590c" stroke-width="44" stroke-linecap="round"/>
+  <circle cx="200" cy="286" r="40" fill="none" stroke="#e8590c" stroke-width="28"/>
+  <circle cx="200" cy="350" r="40" fill="none" stroke="#e8590c" stroke-width="28"/>
+</svg>

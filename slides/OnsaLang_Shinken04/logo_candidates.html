@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><title>Onsa ロゴ案</title>
+<style>
+  body{margin:0;font-family:-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;background:#f4f4f4;color:#1f1f1f}
+  h1{font-size:20px;margin:24px 32px 8px}
+  p.note{margin:0 32px 16px;color:#666;font-size:14px;line-height:1.6}
+  .list{display:grid;gap:20px;padding:0 32px 40px}
+  .card{background:#fff;border:1px solid #ddd;border-radius:8px;overflow:hidden}
+  .card h2{font-size:16px;margin:0;padding:12px 16px;border-bottom:1px solid #eee}
+  .card h2 small{font-weight:400;color:#666;margin-left:8px}
+  .row{display:grid;grid-template-columns:repeat(4,1fr)}
+  .pane{display:flex;align-items:center;justify-content:center;gap:16px;padding:24px 12px;min-height:140px;position:relative}
+  .pane.light{background:#fff;color:#1f1f1f}
+  .pane.dark{background:#000;color:#f0f0f0}
+  .pane img{width:100px;height:100px}
+  .pane .word{font-size:56px;font-weight:800;letter-spacing:-0.02em;line-height:1}
+  .pane .tag{position:absolute;left:8px;top:6px;font-size:11px;color:#888}
+  .marks{display:flex;gap:28px;justify-content:center;align-items:center;padding:12px;border-top:1px solid #eee;background:#fafafa}
+  .marks img{width:44px;height:44px}
+  .marks img.s{width:22px;height:22px}
+  .marks span{font-size:11px;color:#888}
+</style></head><body>
+<h1>Onsa ロゴ案</h1>
+<p class="note">色は dark デザインのアクセント色(#e8590c)。各案とも、左2つが「そのまま」、右2つが「円で囲む版」(白背景・黒背景)。下段は小さいサイズでの見え方。<br>SVG は img/logo_&lt;案&gt;.svg、円で囲む版は img/logo_&lt;案&gt;_ring.svg。案 C は元から円があるので、円なし版を C2 とした。</p>
+<div class="list" id="list"></div>
+<script>
+const items=[
+  ['a','音叉','丸い U 字の音叉。「基準となる音」をそのまま形に'],
+  ['b','音鎖','2つの輪が重なる鎖。音の連鎖(データフロー)'],
+  ['c2','波(C の円なし版)','波だけ。右の円で囲む版が元の案 C に相当'],
+  ['d','O の音叉','角のある音叉で O の形を作るモノグラム'],
+  ['e','信号の連鎖','入力→処理→出力。データフローのノードとエッジ'],
+  ['f1','融合 A+B(1): 音叉 + 鎖の柄','音叉の柄を2つの輪(鎖)にした'],
+  ['f2','融合 A+B(2): 鎖から伸びる音叉','重なる2つの輪を音叉の底にして、そこから2本の腕と柄を出した'],
+  ['f3','融合 A+B(3): 先端が輪の音叉','音叉の腕の先を輪にした。鎖の一環にも見える'],
+];
+document.getElementById('list').innerHTML=items.map(([k,n,d])=>`
+<div class="card"><h2>案 ${k.toUpperCase()}: ${n}<small>${d}</small></h2>
+<div class="row">
+ <div class="pane light"><span class="tag">そのまま</span><img src="img/logo_${k}.svg" alt=""><span class="word">Onsa</span></div>
+ <div class="pane dark"><img src="img/logo_${k}.svg" alt=""><span class="word">Onsa</span></div>
+ <div class="pane light"><span class="tag">円で囲む</span><img src="img/logo_${k}_ring.svg" alt=""><span class="word">Onsa</span></div>
+ <div class="pane dark"><img src="img/logo_${k}_ring.svg" alt=""><span class="word">Onsa</span></div>
+</div>
+<div class="marks"><span>小:</span><img src="img/logo_${k}.svg" alt=""><img class="s" src="img/logo_${k}.svg" alt=""><span>円:</span><img src="img/logo_${k}_ring.svg" alt=""><img class="s" src="img/logo_${k}_ring.svg" alt=""></div>
+</div>`).join('');
+</script>
+</body></html>

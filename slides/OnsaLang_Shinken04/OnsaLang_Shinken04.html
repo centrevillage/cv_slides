@@ -1,0 +1,3379 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="cv_slides">
+<title>LLMと人に優しいDSPプログラム言語「Onsa」</title>
+<style id="viewer-css">
+/* cv_slides viewer skeleton: modes, panes, stage, scaling. Design-independent (8.2). */
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+  background: #d4d4d4;
+}
+
+/* ---- Slide canvas: fixed 1920x1080, positioned by the viewer, never resized by designs ----
+   Every slide (original and thumbnail clone) clips its own content to the canvas in all modes
+   (5.7): overflow clip (hidden as the fallback) plus paint containment from contain: strict. */
+
+.slide,
+.deck > .slide,
+.viewer__thumb-canvas > .slide {
+  position: relative;
+  box-sizing: border-box;
+  width: 1920px;
+  height: 1080px;
+  margin: 0;
+  overflow: hidden;
+  overflow: clip;
+  contain: strict;
+}
+
+.deck {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1920px;
+  height: 1080px;
+  margin: 0;
+  padding: 0;
+  transform-origin: 0 0;
+}
+
+.deck > .slide {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
+/* Only the current slide is rendered; is-measuring is set briefly while the viewer measures.
+   (Printing renders every slide, see the end of this file.) */
+@media not print {
+  .deck > .slide:not(.is-current):not(.is-measuring) {
+    display: none !important;
+  }
+}
+
+/* Takahashi fitting: measure the natural size of the text (viewer.js fitTakahashi). */
+.takahashi__text.is-fitting {
+  display: inline-block !important;
+  width: max-content !important;
+  max-width: none !important;
+  white-space: nowrap !important;
+}
+
+/* Code runner iframe (6.2): fills the slot the design sizes; created by runner.js. */
+iframe.runner__frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+/* ---- Viewer root: navigation mode (list | main) ---- */
+
+.viewer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: grid;
+  grid-template-columns: clamp(160px, 18vw, 320px) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  grid-template-areas: "list main";
+  background: #d4d4d4;
+  color: #333;
+  font: 13px/1.3 system-ui, -apple-system, "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif;
+}
+
+.viewer__main {
+  grid-area: main;
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  box-sizing: border-box;
+  padding: 24px;
+  background: #d4d4d4;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.viewer__main img {
+  -webkit-user-drag: none;
+}
+
+.viewer__stage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.viewer__list {
+  grid-area: list;
+  min-width: 0;
+  min-height: 0;
+  box-sizing: border-box;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 12px 12px 12px 4px;
+  background: #ececec;
+  border-right: 1px solid #c4c4c4;
+  scrollbar-width: thin;
+}
+
+.viewer__thumb {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  margin: 0 0 12px;
+  cursor: pointer;
+}
+
+.viewer__thumb-num {
+  flex: 0 0 2.2em;
+  padding-top: 1px;
+  text-align: right;
+  color: #666;
+  font-variant-numeric: tabular-nums;
+}
+
+.viewer__thumb.is-selected .viewer__thumb-num {
+  color: #1d5fd1;
+  font-weight: 700;
+}
+
+.viewer__thumb-frame {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  aspect-ratio: 16 / 9;
+  /* Each thumbnail clips to its frame. No content-visibility here or on the canvas below: with
+     it, Chrome showed a stale piece of a thumbnail next to the frame, over the list border, at
+     the bottom of the list after a jump (e.g. opening #10 / #24 at 1600x900). */
+  overflow: hidden;
+  contain: layout paint;
+  background: #fff;
+  outline: 1px solid rgba(0, 0, 0, 0.18);
+}
+
+.viewer__thumb:hover .viewer__thumb-frame {
+  outline-color: rgba(0, 0, 0, 0.45);
+}
+
+.viewer__thumb.is-selected .viewer__thumb-frame {
+  outline: 3px solid #1d5fd1;
+}
+
+/* --thumb-scale is set by viewer.js from the frame width. */
+.viewer__thumb-canvas {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1920px;
+  height: 1080px;
+  transform-origin: 0 0;
+  transform: scale(var(--thumb-scale, 0.1));
+  pointer-events: none;
+}
+
+.viewer__thumb-warn {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: #fff3bf;
+  color: #b35900;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.2;
+  box-shadow: 0 0 0 1px rgba(179, 89, 0, 0.5);
+}
+
+/* Long-press progress (stroke length = 2 * pi * 26). */
+.viewer__press {
+  position: absolute;
+  z-index: 3;
+  left: 0;
+  top: 0;
+  width: 72px;
+  height: 72px;
+  margin: -36px 0 0 -36px;
+  pointer-events: none;
+  display: none;
+}
+
+.viewer__press.is-active {
+  display: block;
+}
+
+.viewer__press svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.viewer__press circle {
+  stroke-width: 6;
+}
+
+.viewer__press-track {
+  fill: rgba(255, 255, 255, 0.7);
+  stroke: rgba(0, 0, 0, 0.2);
+}
+
+.viewer__press-bar {
+  fill: none;
+  stroke: #1d5fd1;
+  stroke-dasharray: 163.4;
+  stroke-dashoffset: 163.4;
+}
+
+.viewer__press.is-active .viewer__press-bar {
+  animation: viewer-press 1s linear forwards;
+}
+
+/* Touch long press held for 1 s: presentation starts when the finger is lifted (Q27). */
+.viewer__press.is-armed .viewer__press-bar {
+  animation: none;
+  stroke-dashoffset: 0;
+  stroke: #2f9e44;
+}
+
+.viewer__press-label {
+  position: absolute;
+  left: 50%;
+  bottom: 100%;
+  display: none;
+  margin-bottom: 8px;
+  padding: 6px 12px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.78);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.3;
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+
+.viewer__press.is-armed .viewer__press-label {
+  display: block;
+}
+
+@keyframes viewer-press {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* ---- Portrait / narrow screens: main on top, list below with horizontal scroll (Q35) ---- */
+
+@media (orientation: portrait) {
+  .viewer {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) clamp(88px, 22vh, 180px);
+    grid-template-areas: "main" "list";
+  }
+
+  .viewer__main {
+    padding: 12px;
+  }
+
+  .viewer__list {
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 10px 12px;
+    border-right: 0;
+    border-top: 1px solid #c4c4c4;
+  }
+
+  .viewer__thumb {
+    flex: 0 0 auto;
+    height: 100%;
+    margin: 0 14px 0 0;
+  }
+
+  .viewer__thumb-num {
+    flex: 0 0 auto;
+  }
+
+  .viewer__thumb-frame {
+    flex: 0 0 auto;
+    height: 100%;
+  }
+}
+
+/* ---- Presentation mode: the same stage covers the window (fullscreen or not) ---- */
+
+.viewer--present .viewer__main {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 10;
+  padding: 0;
+  background: #000;
+  touch-action: none;
+}
+
+.viewer--present .viewer__list {
+  visibility: hidden;
+}
+
+/* Close icon (touch, 5.4): top right, tap target 56px, shown for 3 s after a tap at the top. */
+.viewer__close {
+  position: absolute;
+  z-index: 4;
+  top: max(8px, env(safe-area-inset-top));
+  right: max(8px, env(safe-area-inset-right));
+  display: none;
+  width: 56px;
+  height: 56px;
+  margin: 0;
+  padding: 0;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font: 400 36px/1 system-ui, -apple-system, sans-serif;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.viewer--present.viewer--close-visible .viewer__close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.viewer--cursor-hidden,
+.viewer--cursor-hidden * {
+  cursor: none !important;
+}
+
+/* ---- Print / PDF (5.8, Q50): one slide per 1920x1080 page, no viewer UI ---- */
+
+@page {
+  size: 1920px 1080px;
+  margin: 0;
+}
+
+@media print {
+  html,
+  body {
+    width: auto !important;
+    height: auto !important;
+    overflow: visible !important;
+    background: none !important;
+  }
+
+  .viewer,
+  .viewer__main,
+  .viewer__stage {
+    position: static !important;
+    display: block !important;
+    width: auto !important;
+    height: auto !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: none !important;
+  }
+
+  .viewer__list,
+  .viewer__press,
+  .viewer__close,
+  .viewer__thumb-warn {
+    display: none !important;
+  }
+
+  .deck {
+    position: static !important;
+    width: 1920px !important;
+    height: auto !important;
+    transform: none !important;
+  }
+
+  .deck > .slide {
+    position: relative !important;
+    display: block !important;
+    break-after: page;
+    break-inside: avoid;
+  }
+
+  .deck > .slide:last-child {
+    break-after: auto;
+  }
+
+  .slide,
+  .slide * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Code sample pages: the code only, no iframe (Run / Stop) and no console. */
+  .slide .runner__panel {
+    display: none !important;
+  }
+
+  .slide .runner__code > pre {
+    overflow: hidden !important;
+  }
+}
+</style>
+<style id="design-css">
+/* cv_slides design "dark": black background, light text, one accent color, no decoration
+   (7.1, 8.5). Same layout and typography as "default"; only the colors differ. Self-contained:
+   it does not import the default design.
+   Everything here lives inside the 1920x1080 slide canvas; never change the .slide size.
+   Selectors start at .slide (no #deck ancestor) so thumbnail clones render identically. */
+
+.slide {
+  --color-bg: #000000;
+  --color-fg: #f0f0f0;
+  --color-muted: #a3a3a3;
+  --color-accent: #e8590c;
+  --color-code-bg: #262626;
+
+  --font-sans: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", "Meiryo", sans-serif;
+  --font-mono: "SF Mono", "Menlo", "Consolas", "Noto Sans Mono", monospace;
+
+  --margin-x: 96px;
+  --margin-top: 80px;
+  --margin-bottom: 64px;
+
+  --size-title: 96px;
+  --size-subtitle: 48px;
+  --size-heading: 60px;
+  --size-h3: 44px;
+  --size-body: 40px;
+  --size-code: 30px;
+  --size-caption: 26px;
+  --takahashi-max: 360px;
+
+  --title-center-y: 42%;
+
+  /* Additional sizes from 7.2 */
+  --size-author: 32px;
+  --size-meta: 28px;
+  --size-page-number: 24px;
+  --size-image-caption: 32px;
+
+  /* Code blocks keep a dark panel, slightly lighter than the slide background, on every page,
+     including inverse pages (do not invert code: the highlight theme github-dark is made for a
+     dark background). */
+  --color-code-block-bg: #1c1c1c;
+  --color-code-block-fg: #e1e4e8;
+  --color-code-block-muted: #a3a3a3;
+
+  /* Full-screen image page (7.7): letterbox (fit: contain) is black (4.12). Then the band
+     behind overlaid text. */
+  --color-image-bg: #000000;
+  --color-overlay-bg: rgba(0, 0, 0, 0.5);
+  --color-overlay-fg: #ffffff;
+
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+  font-size: var(--size-body);
+  font-weight: 400;
+  line-height: 1.6;
+  text-align: left;
+  font-kerning: normal;
+  color-scheme: dark;
+}
+
+/* Page variant: inverse (8.7). A light page. Code blocks keep their dark panel
+   (--color-code-block-*), so highlighted code is never inverted. */
+.slide.slide--class-inverse {
+  --color-bg: #ffffff;
+  --color-fg: #1f1f1f;
+  --color-muted: #707070;
+  --color-code-bg: #ededed;
+  color-scheme: light;
+}
+
+/* ---- Common ---- */
+
+.slide__inner {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  padding: var(--margin-top) var(--margin-x) var(--margin-bottom);
+}
+
+/* Zero-specificity reset so class rules below always win. */
+:where(.slide) :where(h1, h2, h3, h4, h5, h6, p, figure, blockquote, pre) {
+  margin: 0;
+}
+
+/* Japanese headings: balanced line lengths, break at phrase boundaries (Chromium only). */
+.title__main,
+.title__sub,
+.slide__heading,
+.slide__body h3 {
+  text-wrap: balance;
+  word-break: auto-phrase;
+}
+
+/* Emphasis uses weight and the accent color only; no italics (7.1). */
+.slide em {
+  font-style: normal;
+  font-weight: 700;
+}
+
+.slide strong {
+  font-weight: 700;
+  color: var(--color-accent);
+}
+
+.slide del,
+.slide s {
+  color: var(--color-muted);
+}
+
+.slide a {
+  color: var(--color-accent);
+  text-decoration: underline;
+  text-decoration-thickness: 0.06em;
+  text-underline-offset: 0.15em;
+}
+
+.slide code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+}
+
+.slide :not(pre) > code {
+  padding: 0.08em 0.3em;
+  border-radius: 0.15em;
+  background: var(--color-code-bg);
+}
+
+.slide img {
+  max-width: 100%;
+}
+
+.slide pre {
+  padding: 24px 32px;
+  overflow: hidden;
+  background: var(--color-code-bg);
+  font-family: var(--font-mono);
+  font-size: var(--size-code);
+  line-height: 1.5;
+  white-space: pre;
+  tab-size: 4;
+}
+
+.slide pre code {
+  font-size: inherit;
+}
+
+/* ---- Title page (7.3): title block centered at 42% from the top, meta bottom-right ---- */
+
+/* The flex box spans 0 .. 2 * 42% of the canvas, so its vertical center is at 42%. */
+.slide--title .slide__inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: calc(var(--title-center-y) * 2);
+  padding: 0 var(--margin-x);
+  text-align: center;
+}
+
+.title__main {
+  max-width: 85%;
+  font-size: var(--size-title);
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.title__sub {
+  position: relative;
+  max-width: 85%;
+  margin: calc(var(--size-title) * 0.5) 0 0;
+  font-size: var(--size-subtitle);
+  font-weight: 400;
+  line-height: 1.4;
+  color: color-mix(in srgb, var(--color-fg) 72%, var(--color-bg));
+}
+
+/* Short accent line in the gap between title and subtitle; does not affect layout. */
+.title__main + .title__sub::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: calc(var(--size-title) * -0.25 - 3px);
+  width: 120px;
+  height: 6px;
+  margin-left: -60px;
+  background: var(--color-accent);
+}
+
+/* Positioned against .slide (slide__inner is not positioned). Line 1: icon + author,
+   line 2: "event / date". */
+.title__meta {
+  position: absolute;
+  right: var(--margin-x);
+  bottom: var(--margin-bottom);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  row-gap: 8px;
+  max-width: calc(100% - var(--margin-x) * 2);
+  line-height: 1.4;
+  text-align: right;
+}
+
+.title__meta::before {
+  content: "";
+  order: 2;
+  flex-basis: 100%;
+  height: 0;
+}
+
+.title__icon {
+  order: 1;
+  display: block;
+  flex: 0 0 auto;
+  width: 64px;
+  height: 64px;
+  max-width: none;
+  margin-right: 20px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.title__author {
+  order: 1;
+  font-size: var(--size-author);
+}
+
+.title__event,
+.title__date {
+  order: 3;
+  font-size: var(--size-meta);
+  color: var(--color-muted);
+}
+
+.title__event ~ .title__date::before {
+  content: "/";
+  margin: 0 0.5em;
+}
+
+/* ---- Content page (7.4) ---- */
+
+.slide--content .slide__inner {
+  display: flex;
+  flex-direction: column;
+}
+
+.slide__heading {
+  flex: 0 0 auto;
+  margin: 0 0 40px;
+  font-size: var(--size-heading);
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+/* Remaining height is the body area; overflow is clipped and reported by the viewer (5.7). */
+.slide__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  overflow-wrap: break-word;
+}
+
+.slide__body p {
+  margin: 0 0 0.6em;
+}
+
+.slide__body ul,
+.slide__body ol {
+  margin: 0 0 0.6em;
+  padding-left: 1.3em;
+}
+
+.slide__body li {
+  margin: 0.1em 0;
+}
+
+.slide__body li > ul,
+.slide__body li > ol {
+  margin: 0.1em 0 0;
+  font-size: 0.9em;
+}
+
+.slide__body li::marker {
+  color: var(--color-accent);
+}
+
+.slide__body h3 {
+  margin: 0.8em 0 0.3em;
+  font-size: var(--size-h3);
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.slide__body blockquote {
+  margin: 0 0 0.6em;
+  padding: 0.1em 0 0.1em 1em;
+  border-left: 6px solid var(--color-muted);
+  color: var(--color-muted);
+}
+
+.slide__body table {
+  margin: 0 0 0.6em;
+  border-collapse: collapse;
+  font-size: 0.85em;
+  line-height: 1.4;
+}
+
+.slide__body th,
+.slide__body td {
+  padding: 0.35em 0.9em;
+  border-bottom: 1px solid var(--color-muted);
+  text-align: left;
+  vertical-align: top;
+}
+
+.slide__body th {
+  font-weight: 700;
+  border-bottom: 3px solid var(--color-fg);
+}
+
+.slide__body hr {
+  margin: 32px 0;
+  border: 0;
+  border-top: 2px solid var(--color-muted);
+}
+
+/* Flow containers: the body and each column are flex columns so that an image can take the
+   remaining height (7.4). Only image figures (and columns holding one) may shrink; everything
+   else keeps its content height, so real overflow still shows up and is reported (5.7). */
+.slide__body,
+.column {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+
+.slide__body > *,
+.column > * {
+  flex: 0 0 auto;
+}
+
+.slide__body > table,
+.column > table {
+  align-self: flex-start;
+}
+
+.slide__body > .figure--image,
+.column > .figure--image,
+.slide__body > .columns:has(.figure--image) {
+  flex-shrink: 1;
+  min-height: 0;
+}
+
+/* Block elements (images, code, columns, block math) get 32px around them (7.4). */
+.slide__body .figure,
+.slide__body .columns,
+.slide__body .math--block,
+.slide__body > pre {
+  margin: 32px 0;
+}
+
+/* Flex items do not collapse margins. Every top margin in the body (h3, blocks, hr) is at least
+   as large as any bottom margin, so dropping the bottom margin before them gives the same gaps
+   as collapsed block flow. */
+.slide__body > :has(+ :is(h3, .figure, .columns, .math--block, pre, hr)),
+.column > :has(+ :is(h3, .figure, .math--block, pre, hr)) {
+  margin-bottom: 0;
+}
+
+.slide__body > :first-child,
+.column > :first-child {
+  margin-top: 0;
+}
+
+/* A flex item does not collapse its children's margins either: the last item's margin would
+   add to the list's own bottom margin. (The first item's top margin used to collapse into the
+   same offset, so it stays.) */
+.slide__body > :is(ul, ol) > li:last-child,
+.column > :is(ul, ol) > li:last-child {
+  margin-bottom: 0;
+}
+
+.slide__body > :last-child,
+.column > :last-child,
+.slide__body li > :last-child,
+.slide__body blockquote > :last-child {
+  margin-bottom: 0;
+}
+
+.figure__caption {
+  font-size: var(--size-caption);
+  font-style: normal;
+  line-height: 1.4;
+  color: var(--color-muted);
+}
+
+/* ---- Image in content: largest size that fits the remaining height, never upscaled, centered.
+   An explicit width from the markup (style="width: 60%") wins over the natural size. ---- */
+
+.figure--image {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+}
+
+.figure--image > img {
+  display: block;
+  flex: 0 1 auto;
+  min-height: 0;
+  max-width: 100%;
+  object-fit: contain;
+}
+
+.figure--image .figure__caption {
+  flex: 0 0 auto;
+  margin-top: 12px;
+  text-align: center;
+}
+
+/* Missing / remote / unsupported image (4.7). */
+.figure__missing {
+  box-sizing: border-box;
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 60%;
+  min-height: 240px;
+  padding: 32px;
+  border: 3px dashed var(--color-muted);
+  color: var(--color-muted);
+  font-size: var(--size-caption);
+  line-height: 1.4;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+/* ---- Code (4.8, 7.4): full body width, no wrapping, overflow clipped and reported. ---- */
+
+.figure--code {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  min-width: 0;
+}
+
+/* File name as a tab on top of the code panel. */
+.figure--code > .figure__caption {
+  align-self: flex-start;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 8px 24px 4px;
+  overflow: hidden;
+  background: var(--color-code-block-bg);
+  color: var(--color-code-block-muted);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Shiki sets the theme colors inline. github-dark's own background (#24292e, bluish) is
+   replaced by the neutral code panel, slightly lighter than the slide background (7.4); the
+   token colors are unchanged. Other themes keep their inline colors. */
+.slide pre.shiki.github-dark {
+  background-color: var(--color-code-block-bg) !important;
+}
+
+/* No highlighting: the design's code colors. */
+.slide pre.shiki.plain {
+  background-color: var(--color-code-block-bg);
+  color: var(--color-code-block-fg);
+}
+
+/* One grid row per line: highlighted lines get a full-width tint. Whitespace-only text between
+   the line spans is not rendered in a grid container. */
+.slide pre.shiki > code {
+  display: grid;
+  width: max-content;
+  min-width: 100%;
+  font-size: inherit;
+}
+
+.slide pre.shiki .line {
+  display: block;
+  min-height: 1.5em;
+  margin: 0 -32px;
+  padding: 0 32px;
+}
+
+.slide pre.shiki .line.is-highlighted {
+  background: color-mix(in srgb, var(--color-accent) 22%, transparent);
+}
+
+.figure--line-numbers pre.shiki > code {
+  counter-reset: line;
+}
+
+.figure--line-numbers pre.shiki .line::before {
+  counter-increment: line;
+  content: counter(line);
+  display: inline-block;
+  width: 2ch;
+  margin-right: 1.5ch;
+  text-align: right;
+  opacity: 0.4;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* ---- Columns (4.9): 64px gap, width ratio from --col-ratio, top aligned. Columns stretch to
+   the row height (invisible: no backgrounds) so an image inside can fit the remaining height;
+   content still starts at the top of each column. ---- */
+
+.columns {
+  display: flex;
+  align-items: stretch;
+  gap: 64px;
+}
+
+.column {
+  flex: var(--col-ratio, 1) 1 0%;
+  min-width: 0;
+}
+
+/* ---- Math (MathML from KaTeX): same size as the surrounding text ---- */
+
+.slide math {
+  font-size: 1em;
+}
+
+.math--block {
+  max-width: 100%;
+  text-align: center;
+}
+
+.math--block > math {
+  display: block math;
+  margin: 0 auto;
+}
+
+.slide .math-error {
+  color: var(--color-accent);
+}
+
+/* ---- Takahashi page (7.5): font size is fitted by the viewer up to --takahashi-max ---- */
+
+.slide--takahashi .slide__inner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.takahashi__text {
+  margin: 0;
+  font-size: 160px;
+  font-weight: 900;
+  line-height: 1.2;
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* ---- Code sample page (7.6): title, optional description, code 60% | panel 40%. The panel
+   is: iframe row (▶ Run / ■ Stop + status, drawn by runner.js with the --runner-* colors),
+   console bar with Clear, console. Code and console scroll on their own (wheel over them
+   scrolls instead of turning the page). ---- */
+
+.slide--code {
+  --runner-fg: var(--color-code-block-fg);
+  --runner-bg: var(--color-code-block-bg);
+  --runner-muted: var(--color-code-block-muted);
+  --runner-accent: var(--color-accent);
+  --runner-on-accent: #ffffff;
+  --runner-warn: #e3b341;
+  --runner-warn-bg: #2e2510;
+  --runner-error: #ff7b72;
+  --runner-error-bg: #3a1614;
+  --runner-border: #3d3d3d;
+  --size-console: 24px;
+  --size-runner-controls: 26px;
+}
+
+.slide--code .slide__inner {
+  display: flex;
+  flex-direction: column;
+}
+
+.code__description {
+  flex: 0 0 auto;
+  margin: -8px 0 32px;
+  font-size: var(--size-body);
+  line-height: 1.5;
+}
+
+.runner {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  align-items: stretch;
+  gap: 32px;
+}
+
+.runner__code {
+  flex: 6 1 0%;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+}
+
+.runner__code > pre {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+.runner__panel {
+  flex: 4 1 0%;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--runner-bg);
+  color: var(--runner-fg);
+}
+
+/* Height of the iframe row; runner.js copies color and font size from here into the iframe. */
+.runner__frame-slot {
+  flex: 0 0 auto;
+  height: 80px;
+  font-family: var(--font-sans);
+  font-size: var(--size-runner-controls);
+  background: var(--runner-bg);
+  color: var(--runner-fg);
+}
+
+.runner[data-runnable="false"] .runner__frame-slot {
+  display: flex;
+  align-items: center;
+  padding: 0 0.6em;
+  box-sizing: border-box;
+  color: var(--runner-muted);
+}
+
+.slide--code .runner[data-runnable="false"] .runner__frame-slot::before {
+  content: "実行するコードはありません";
+}
+
+.runner__console-bar {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 8px 16px;
+  border-top: 2px solid var(--runner-border);
+  border-bottom: 2px solid var(--runner-border);
+}
+
+.runner__clear {
+  margin: 0;
+  padding: 2px 16px;
+  border: 2px solid var(--runner-muted);
+  border-radius: 0;
+  background: transparent;
+  color: var(--runner-fg);
+  font-family: var(--font-sans);
+  font-size: var(--size-caption);
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.runner__clear:hover {
+  border-color: var(--runner-fg);
+}
+
+.runner__console {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  padding: 12px 20px;
+  font-family: var(--font-mono);
+  font-size: var(--size-console);
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.runner__line {
+  margin: 0 -20px;
+  padding: 0 20px;
+}
+
+.runner__line--debug,
+.runner__line--system {
+  color: var(--runner-muted);
+}
+
+.runner__line--warn {
+  color: var(--runner-warn);
+  background: var(--runner-warn-bg);
+}
+
+.runner__line--error {
+  color: var(--runner-error);
+  background: var(--runner-error-bg);
+}
+
+/* ---- Full-screen image page (7.7): no .slide__inner, the image covers the whole canvas ---- */
+
+.slide--image {
+  background: var(--color-image-bg);
+}
+
+.slide--image > .image__img {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  object-fit: cover;
+}
+
+.slide--image[data-fit="contain"] > .image__img {
+  object-fit: contain;
+}
+
+/* Image not found: the placeholder box is centered on the canvas. */
+.slide--image > .figure--missing {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  justify-content: center;
+}
+
+.slide--image .figure__missing {
+  border-color: var(--color-overlay-fg);
+  color: var(--color-overlay-fg);
+}
+
+/* Short text bottom-left; the band sits behind the text only. The text itself starts at
+   left 96px / bottom 64px, the band's padding extends outside that. */
+.image__caption {
+  position: absolute;
+  left: calc(var(--margin-x) - 0.5em);
+  bottom: calc(var(--margin-bottom) - 0.25em);
+  max-width: calc(100% - var(--margin-x) * 2);
+  margin: 0;
+  padding: 0.25em 0.5em;
+  background: var(--color-overlay-bg);
+  color: var(--color-overlay-fg);
+  font-size: var(--size-image-caption);
+  line-height: 1.4;
+}
+
+/* ---- Page number (5.4, Q33): injected by the viewer, not on title pages ---- */
+
+.slide__page-number {
+  position: absolute;
+  right: var(--margin-x);
+  bottom: 20px;
+  font-size: var(--size-page-number);
+  line-height: 1;
+  color: var(--color-muted);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+.slide--image .slide__page-number {
+  right: calc(var(--margin-x) - 0.5em);
+  bottom: calc(20px - 0.3em);
+  padding: 0.3em 0.5em;
+  background: var(--color-overlay-bg);
+  color: var(--color-overlay-fg);
+}
+</style>
+</head>
+<body>
+<main id="deck" class="deck design-dark" data-design="dark" data-page-number="true">
+<section class="slide slide--title" data-index="0">
+<div class="slide__inner">
+<h1 class="title__main"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="200" height="200" style="display:block;margin:0 auto 24px"><path d="M118 48 V196 a82 82 0 0 0 164 0 V48" fill="none" stroke="#e8590c" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/><rect x="177" y="262" width="46" height="100" rx="23" fill="#e8590c"/></svg>LLMと人に優しい<br>DSPプログラム言語「Onsa」</h1>
+<p class="title__sub">音を書くための、新しい言語を作っています</p>
+<div class="title__meta">
+<span class="title__author">centrevillage</span>
+<span class="title__event">Shinken #04</span> <span class="title__date">2026-10-14</span>
+</div>
+</div>
+</section>
+<section class="slide slide--content" data-index="1">
+<div class="slide__inner">
+<h2 class="slide__heading">なぜ新しい言語を作るのか？</h2>
+<div class="slide__body">
+<ul>
+<li><strong>LLM が書きやすい言語とは？</strong>
+<ul>
+<li>「一つの意図に書き方は一つ」。読み方が分かれない文法</li>
+<li>エラーが<strong>局所的</strong>で、関数の中だけ見れば直せる</li>
+</ul>
+</li>
+<li><strong>今、新しい言語が必要だとしたら、どの領域？</strong>
+<ul>
+<li>汎用言語は飽和。LLM は既存の言語を十分に書ける</li>
+<li>まだ「決定版」がない、小さく閉じた領域</li>
+</ul>
+</li>
+<li><strong>DSP(音の信号処理)なら？</strong>
+<ul>
+<li>定番の FAUST は強力だが、記法が独特で LLM も人も読みづらい</li>
+<li>FAUST の代わりになる言語なら、作る価値がある</li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+</section>
+<section class="slide slide--content" data-index="2">
+<div class="slide__inner">
+<h2 class="slide__heading">何がしたいのか</h2>
+<div class="slide__body">
+<ul>
+<li><strong>LLM を使って開発を高速化したい</strong>
+<ul>
+<li>エフェクターやシンセの「中身」を、言葉で指示して書かせる</li>
+</ul>
+</li>
+<li><strong>IDE で音を確かめながら開発したい</strong>
+<ul>
+<li>FAUST のように、書いたそばから鳴らして聴く</li>
+</ul>
+</li>
+<li><strong>あらゆる環境にトランスパイルできる「基準」にしたい</strong>
+<ul>
+<li>PC のプラグインも、ヒープのないマイコンも、同じソースから</li>
+</ul>
+</li>
+<li><strong>独自言語の開発は、プログラマの夢・・・</strong></li>
+</ul>
+</div>
+</div>
+</section>
+<section class="slide slide--content" data-index="3">
+<div class="slide__inner">
+<h2 class="slide__heading">「Onsa」という名前</h2>
+<div class="slide__body">
+<div class="columns columns--2">
+<div class="column" style="--col-ratio: 1">
+<h3>音叉</h3>
+<ul>
+<li>DSP 開発の<strong>ベース</strong>となるもの</li>
+<li>基準となる音程を鳴らす道具</li>
+<li>「これに合わせる」ための存在</li>
+</ul>
+</div>
+<div class="column" style="--col-ratio: 1">
+<h3>音鎖</h3>
+<ul>
+<li>音の流れを<strong>チェイン</strong>する</li>
+<li>データフロー形式で、音の処理をつないでいく</li>
+<li>音の連鎖</li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+</section>
+<section class="slide slide--content" data-index="4">
+<div class="slide__inner">
+<h2 class="slide__heading">Onsa の文法</h2>
+<div class="slide__body">
+<ul>
+<li>汎用言語の部分は <strong>Rust</strong> に似ている
+<ul>
+<li>関数・構造体・型注釈・所有権の考え方</li>
+</ul>
+</li>
+<li>信号処理の部分は <strong>Lustre</strong> に似た同期データフロー
+<ul>
+<li><code>flow</code> の本体は「1 サンプルごとに評価される関数」</li>
+<li>状態は遅延(<code>prev~</code>)にしか現れず、結線の誤りはコンパイル時に落ちる</li>
+</ul>
+</li>
+<li>FAUST と違って、<strong>すべての信号に名前がある</strong></li>
+<li>LLM が読みやすい文法を目指した結果、<strong>人にも読みやすくなった</strong></li>
+</ul>
+<figure class="figure figure--code" data-lang="onsa">
+<figcaption class="figure__caption">one_pole.onsa</figcaption>
+<pre class="shiki github-dark" style="background-color:#24292e;color:#e1e4e8"><code><span class="line"><span style="color:#F97583">pub</span><span style="color:#F97583"> flow</span><span style="color:#B392F0"> one_pole</span><span style="color:#E1E4E8">(x: </span><span style="color:#79B8FF">F32</span><span style="color:#F97583"> at</span><span style="color:#79B8FF"> sample</span><span style="color:#E1E4E8">, p: </span><span style="color:#79B8FF">F32</span><span style="color:#F97583"> at</span><span style="color:#79B8FF"> block</span><span style="color:#E1E4E8">) </span><span style="color:#F97583">-></span><span style="color:#79B8FF"> F32</span><span style="color:#F97583"> at</span><span style="color:#79B8FF"> sample</span><span style="color:#E1E4E8"> {</span></span>
+<span class="line"><span style="color:#F97583">  let</span><span style="color:#E1E4E8"> y </span><span style="color:#F97583">=</span><span style="color:#E1E4E8"> (</span><span style="color:#79B8FF">1.0</span><span style="color:#F97583"> -</span><span style="color:#E1E4E8"> p) </span><span style="color:#F97583">*</span><span style="color:#E1E4E8"> x </span><span style="color:#F97583">+</span><span style="color:#E1E4E8"> p </span><span style="color:#F97583">*</span><span style="color:#B392F0"> prev</span><span style="color:#F97583">~</span><span style="color:#E1E4E8">(</span><span style="color:#F97583">^</span><span style="color:#E1E4E8">y)</span></span>
+<span class="line"><span style="color:#E1E4E8">  y</span></span>
+<span class="line"><span style="color:#E1E4E8">}</span></span></code></pre>
+</figure>
+</div>
+</div>
+</section>
+<section class="slide slide--content" data-index="5">
+<div class="slide__inner">
+<h2 class="slide__heading">FAUST との比較(1次ローパス)</h2>
+<div class="slide__body">
+<div class="columns columns--2">
+<div class="column" style="--col-ratio: 1">
+<figure class="figure figure--code" data-lang="faust">
+<figcaption class="figure__caption">FAUST: one_pole.dsp</figcaption>
+<pre class="shiki github-dark" style="background-color:#24292e;color:#e1e4e8"><code><span class="line"><span style="color:#F97583">import(</span><span style="color:#9ECBFF">"stdfaust.lib"</span><span style="color:#F97583">)</span><span style="color:#79B8FF">;</span></span>
+<span class="line"><span style="color:#E1E4E8">p </span><span style="color:#79B8FF">=</span><span style="color:#79B8FF"> hslider</span><span style="color:#F97583">(</span><span style="color:#9ECBFF">"p"</span><span style="color:#F97583">,</span><span style="color:#79B8FF"> 0.99</span><span style="color:#F97583">,</span><span style="color:#79B8FF"> 0</span><span style="color:#F97583">,</span><span style="color:#79B8FF"> 1</span><span style="color:#F97583">,</span><span style="color:#79B8FF"> 0.01</span><span style="color:#F97583">)</span><span style="color:#79B8FF">;</span></span>
+<span class="line"><span style="color:#F97583">process</span><span style="color:#79B8FF"> =</span><span style="color:#F97583"> *(</span><span style="color:#79B8FF">1</span><span style="color:#F97583"> -</span><span style="color:#E1E4E8"> p</span><span style="color:#F97583">)</span><span style="color:#F97583"> :</span><span style="color:#F97583"> +</span><span style="color:#F97583"> ~</span><span style="color:#F97583"> *(</span><span style="color:#E1E4E8">p</span><span style="color:#F97583">)</span><span style="color:#79B8FF">;</span></span></code></pre>
+</figure>
+</div>
+<div class="column" style="--col-ratio: 1">
+<figure class="figure figure--code" data-lang="onsa">
+<figcaption class="figure__caption">Onsa: one_pole.onsa</figcaption>
+<pre class="shiki github-dark" style="background-color:#24292e;color:#e1e4e8"><code><span class="line"><span style="color:#F97583">pub</span><span style="color:#F97583"> flow</span><span style="color:#B392F0"> one_pole</span><span style="color:#E1E4E8">(</span></span>
+<span class="line"><span style="color:#E1E4E8">  x: </span><span style="color:#79B8FF">F32</span><span style="color:#F97583"> at</span><span style="color:#79B8FF"> sample</span><span style="color:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#E1E4E8">  p: </span><span style="color:#79B8FF">F32</span><span style="color:#F97583"> at</span><span style="color:#79B8FF"> block</span><span style="color:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#E1E4E8">) </span><span style="color:#F97583">-></span><span style="color:#79B8FF"> F32</span><span style="color:#F97583"> at</span><span style="color:#79B8FF"> sample</span><span style="color:#E1E4E8"> {</span></span>
+<span class="line"><span style="color:#F97583">  let</span><span style="color:#E1E4E8"> y </span><span style="color:#F97583">=</span><span style="color:#E1E4E8"> (</span><span style="color:#79B8FF">1.0</span><span style="color:#F97583"> -</span><span style="color:#E1E4E8"> p) </span><span style="color:#F97583">*</span><span style="color:#E1E4E8"> x </span><span style="color:#F97583">+</span><span style="color:#E1E4E8"> p </span><span style="color:#F97583">*</span><span style="color:#B392F0"> prev</span><span style="color:#F97583">~</span><span style="color:#E1E4E8">(</span><span style="color:#F97583">^</span><span style="color:#E1E4E8">y)</span></span>
+<span class="line"><span style="color:#E1E4E8">  y</span></span>
+<span class="line"><span style="color:#E1E4E8">}</span></span></code></pre>
+</figure>
+</div>
+</div>
+<ul>
+<li>FAUST は <strong>point-free</strong>: 信号に名前がなく、<code>:</code> と <code>~</code> で配線をつなぐ。<code>~</code> が暗黙に 1 サンプル遅らせる</li>
+<li>Onsa は信号 <code>x</code>・<code>p</code>・<code>y</code> に<strong>名前がある</strong>。帰還は <code>prev~(^y)</code> と書き手が明示する</li>
+<li><code>at block</code> / <code>at sample</code> で、その値がどの速さで変わるかが読める</li>
+</ul>
+</div>
+</div>
+</section>
+<section class="slide slide--content" data-index="6">
+<div class="slide__inner">
+<h2 class="slide__heading">Rust との比較(汎用の処理)</h2>
+<div class="slide__body">
+<div class="columns columns--2">
+<div class="column" style="--col-ratio: 1">
+<figure class="figure figure--code" data-lang="rust">
+<figcaption class="figure__caption">Rust: point.rs</figcaption>
+<pre class="shiki github-dark" style="background-color:#24292e;color:#e1e4e8"><code><span class="line"><span style="color:#F97583">struct</span><span style="color:#B392F0"> Point</span><span style="color:#E1E4E8"> { x</span><span style="color:#F97583">:</span><span style="color:#B392F0"> f32</span><span style="color:#E1E4E8">, y</span><span style="color:#F97583">:</span><span style="color:#B392F0"> f32</span><span style="color:#E1E4E8"> }</span></span>
+<span class="line"><span style="color:#F97583">impl</span><span style="color:#B392F0"> Point</span><span style="color:#E1E4E8"> {</span></span>
+<span class="line"><span style="color:#F97583">  fn</span><span style="color:#B392F0"> scale</span><span style="color:#E1E4E8">(</span><span style="color:#F97583">&#x26;mut</span><span style="color:#79B8FF"> self</span><span style="color:#E1E4E8">, k</span><span style="color:#F97583">:</span><span style="color:#B392F0"> f32</span><span style="color:#E1E4E8">) {</span></span>
+<span class="line"><span style="color:#79B8FF">    self</span><span style="color:#F97583">.</span><span style="color:#E1E4E8">x </span><span style="color:#F97583">*=</span><span style="color:#E1E4E8"> k;</span></span>
+<span class="line"><span style="color:#79B8FF">    self</span><span style="color:#F97583">.</span><span style="color:#E1E4E8">y </span><span style="color:#F97583">*=</span><span style="color:#E1E4E8"> k;</span></span>
+<span class="line"><span style="color:#E1E4E8">  }</span></span>
+<span class="line"><span style="color:#E1E4E8">}</span></span>
+<span class="line"><span style="color:#6A737D">// 呼ぶ側</span></span>
+<span class="line"><span style="color:#F97583">let</span><span style="color:#F97583"> mut</span><span style="color:#E1E4E8"> p </span><span style="color:#F97583">=</span><span style="color:#B392F0"> Point</span><span style="color:#E1E4E8"> { x</span><span style="color:#F97583">:</span><span style="color:#79B8FF"> 3.0</span><span style="color:#E1E4E8">, y</span><span style="color:#F97583">:</span><span style="color:#79B8FF"> 4.0</span><span style="color:#E1E4E8"> };</span></span>
+<span class="line"><span style="color:#E1E4E8">p</span><span style="color:#F97583">.</span><span style="color:#B392F0">scale</span><span style="color:#E1E4E8">(</span><span style="color:#79B8FF">2.0</span><span style="color:#E1E4E8">);</span></span></code></pre>
+</figure>
+</div>
+<div class="column" style="--col-ratio: 1">
+<figure class="figure figure--code" data-lang="onsa">
+<figcaption class="figure__caption">Onsa: point.onsa</figcaption>
+<pre class="shiki github-dark" style="background-color:#24292e;color:#e1e4e8"><code><span class="line"><span style="color:#F97583">struct</span><span style="color:#B392F0"> Point</span><span style="color:#E1E4E8"> { x: </span><span style="color:#79B8FF">F32</span><span style="color:#E1E4E8">, y: </span><span style="color:#79B8FF">F32</span><span style="color:#E1E4E8"> }</span></span>
+<span class="line"><span style="color:#F97583">impl</span><span style="color:#B392F0"> Point</span><span style="color:#E1E4E8"> {</span></span>
+<span class="line"><span style="color:#F97583">  fn</span><span style="color:#B392F0"> scale</span><span style="color:#E1E4E8">(</span><span style="color:#F97583">inout</span><span style="color:#79B8FF"> self</span><span style="color:#E1E4E8">, k: </span><span style="color:#79B8FF">F32</span><span style="color:#E1E4E8">) {</span></span>
+<span class="line"><span style="color:#79B8FF">    self</span><span style="color:#E1E4E8">.x </span><span style="color:#F97583">=</span><span style="color:#79B8FF"> self</span><span style="color:#E1E4E8">.x </span><span style="color:#F97583">*</span><span style="color:#E1E4E8"> k</span></span>
+<span class="line"><span style="color:#79B8FF">    self</span><span style="color:#E1E4E8">.y </span><span style="color:#F97583">=</span><span style="color:#79B8FF"> self</span><span style="color:#E1E4E8">.y </span><span style="color:#F97583">*</span><span style="color:#E1E4E8"> k</span></span>
+<span class="line"><span style="color:#E1E4E8">  }</span></span>
+<span class="line"><span style="color:#E1E4E8">}</span></span>
+<span class="line"><span style="color:#6A737D">// 呼ぶ側</span></span>
+<span class="line"><span style="color:#F97583">var</span><span style="color:#E1E4E8"> p </span><span style="color:#F97583">=</span><span style="color:#B392F0"> Point</span><span style="color:#E1E4E8"> { x: </span><span style="color:#79B8FF">3.0</span><span style="color:#E1E4E8">, y: </span><span style="color:#79B8FF">4.0</span><span style="color:#E1E4E8"> }</span></span>
+<span class="line"><span style="color:#E1E4E8">p.</span><span style="color:#B392F0">scale</span><span style="color:#F97583">!</span><span style="color:#E1E4E8">(</span><span style="color:#79B8FF">2.0</span><span style="color:#E1E4E8">)</span></span></code></pre>
+</figure>
+</div>
+</div>
+<ul>
+<li>見た目はほぼ同じ: <code>fn</code>・<code>struct</code>・<code>impl</code>・型注釈、最後の式が値</li>
+<li>参照(<code>&amp;mut</code>)の代わりに <code>inout</code>。呼ぶ側にも <code>!</code> が付き、<strong>何が変わるかが 1 行で分かる</strong></li>
+<li>シグネチャは完全注釈、型推論は関数の中だけ。エラーが<strong>局所的</strong>で LLM が直しやすい</li>
+</ul>
+</div>
+</div>
+</section>
+<section class="slide slide--content" data-index="7">
+<div class="slide__inner">
+<h2 class="slide__heading">flow をつなぐ(音鎖)</h2>
+<div class="slide__body">
+<figure class="figure figure--code" data-lang="onsa">
+<figcaption class="figure__caption">voice.onsa</figcaption>
+<pre class="shiki github-dark" style="background-color:#24292e;color:#e1e4e8"><code><span class="line"><span style="color:#F97583">pub</span><span style="color:#F97583"> flow</span><span style="color:#B392F0"> voice</span><span style="color:#E1E4E8">(f0: </span><span style="color:#79B8FF">F32</span><span style="color:#F97583"> at</span><span style="color:#79B8FF"> block</span><span style="color:#E1E4E8">, gain: </span><span style="color:#79B8FF">F32</span><span style="color:#F97583"> at</span><span style="color:#79B8FF"> block</span><span style="color:#E1E4E8">) </span><span style="color:#F97583">-></span><span style="color:#79B8FF"> F32</span><span style="color:#F97583"> at</span><span style="color:#79B8FF"> sample</span><span style="color:#E1E4E8"> {</span></span>
+<span class="line"><span style="color:#F97583">  let</span><span style="color:#E1E4E8"> src </span><span style="color:#F97583">=</span><span style="color:#B392F0"> saw</span><span style="color:#F97583">~</span><span style="color:#E1E4E8">(f0)                     </span><span style="color:#6A737D">// のこぎり波</span></span>
+<span class="line"><span style="color:#F97583">  let</span><span style="color:#E1E4E8"> f1  </span><span style="color:#F97583">=</span><span style="color:#B392F0"> resonator</span><span style="color:#F97583">~</span><span style="color:#E1E4E8">(src, </span><span style="color:#79B8FF">700.0</span><span style="color:#E1E4E8">, </span><span style="color:#79B8FF">80.0</span><span style="color:#E1E4E8">) </span><span style="color:#6A737D">// 母音の共鳴 1</span></span>
+<span class="line"><span style="color:#F97583">  let</span><span style="color:#E1E4E8"> f2  </span><span style="color:#F97583">=</span><span style="color:#B392F0"> resonator</span><span style="color:#F97583">~</span><span style="color:#E1E4E8">(src, </span><span style="color:#79B8FF">1220.0</span><span style="color:#E1E4E8">, </span><span style="color:#79B8FF">120.0</span><span style="color:#E1E4E8">)</span></span>
+<span class="line"><span style="color:#E1E4E8">  (f1 </span><span style="color:#F97583">+</span><span style="color:#E1E4E8"> f2) </span><span style="color:#F97583">*</span><span style="color:#B392F0"> smooth</span><span style="color:#F97583">~</span><span style="color:#E1E4E8">(gain, </span><span style="color:#79B8FF">0.01</span><span style="color:#E1E4E8">)        </span><span style="color:#6A737D">// ゲインをなめらかに</span></span>
+<span class="line"><span style="color:#E1E4E8">}</span></span></code></pre>
+</figure>
+<ul>
+<li><code>名前~(...)</code> は、状態を持つ <strong>flow のインスタンス</strong>を作る</li>
+<li>上から下へ、音の流れがそのまま読める</li>
+<li>ここから C のコードが生成され、プラグインにもマイコンにも入る(予定)</li>
+</ul>
+</div>
+</div>
+</section>
+<section class="slide slide--content" data-index="8">
+<div class="slide__inner">
+<h2 class="slide__heading">開発の状況</h2>
+<div class="slide__body">
+<ul>
+<li>最初に <strong>C トランスパイラまで一気に</strong>作った
+<ul>
+<li>仕様 → 構文解析 → 意味解析 → C 出力、までは動いた</li>
+<li>でも<strong>バグだらけ</strong>だった・・・</li>
+</ul>
+</li>
+<li>設計をガッチリ固めて、<strong>作り直し中</strong>
+<ul>
+<li>仕様書(0.3 版)を先に書き、仕様の例をそのままテストにする</li>
+<li>「決めていないことは実装しない」</li>
+</ul>
+</li>
+<li>作り直しの現在地
+<ul>
+<li><strong>構文解析</strong>(+ フォーマッタ)がほぼ完了</li>
+<li>これから<strong>意味解析</strong>(名前・型・レートの検査)へ</li>
+</ul>
+</li>
+<li>公開: <a href="https://github.com/centrevillage/onsalang" target="_blank" rel="noopener">github.com/centrevillage/onsalang</a></li>
+</ul>
+</div>
+</div>
+</section>
+<section class="slide slide--title" data-index="9">
+<div class="slide__inner">
+<h1 class="title__main">質疑応答</h1>
+<p class="title__sub">ご質問・ご意見をお待ちしています</p>
+</div>
+</section>
+</main>
+<script id="viewer-js">
+/* cv_slides viewer: modes, input handling and scaling. No dependencies, no build step. */
+(function () {
+  "use strict";
+
+  var CANVAS_W = 1920;
+  var CANVAS_H = 1080;
+  var LONG_PRESS_MS = 1000; // keep in sync with the viewer-press animation in viewer.css
+  var LONG_PRESS_SLOP_PX = 10;
+  var CURSOR_IDLE_MS = 2000;
+  var TAKAHASHI_MAX_DEFAULT = 360;
+  var WHEEL_LINE_PX = 40;
+  var WHEEL_PAGE_PX = 800;
+  // Touch (5.3, 5.4, Q27, Q31).
+  var FLICK_MIN_PX = 50;
+  var FLICK_MAX_MS = 600;
+  var TAP_SLOP_PX = 10;
+  var TAP_MAX_MS = 600;
+  var TOP_AREA_RATIO = 0.15;
+  var CLOSE_ICON_MS = 3000;
+
+  // Clicks on these act on the element itself instead of turning the page (5.4, 5.5).
+  var NO_CLICK_TURN =
+    "a[href], button, input, select, textarea, label, summary, iframe, [contenteditable], .runner, [data-viewer-interactive]";
+  // Wheel over these scrolls the element instead of turning the page (5.5).
+  var NO_WHEEL_TURN = "textarea, select, .runner, [data-viewer-interactive]";
+
+  /* ---------- Pure logic (tested by scripts/runtime/dev/viewer-logic.test.mjs) ---------- */
+
+  function clampIndex(index, count) {
+    if (!(count > 0)) return 0;
+    index = Math.floor(Number(index));
+    if (!isFinite(index) || index < 0) return 0;
+    return index >= count ? count - 1 : index;
+  }
+
+  // "#5" -> 4 (clamped to the deck). Returns null when the hash is not a slide number.
+  function parseHash(hash, count) {
+    var m = /^#?(\d+)$/.exec(String(hash || ""));
+    if (!m) return null;
+    return clampIndex(parseInt(m[1], 10) - 1, count);
+  }
+
+  function formatHash(index) {
+    return "#" + (index + 1);
+  }
+
+  // Largest uniform scale that fits content into box, centered (letterbox).
+  function computeFit(boxW, boxH, contentW, contentH) {
+    if (!(boxW > 0 && boxH > 0 && contentW > 0 && contentH > 0)) return { scale: 0, x: 0, y: 0 };
+    var scale = Math.min(boxW / contentW, boxH / contentH);
+    return { scale: scale, x: (boxW - contentW * scale) / 2, y: (boxH - contentH * scale) / 2 };
+  }
+
+  // Largest integer n in [lo, hi] with fits(n) true, assuming fits is monotonic. Returns lo if nothing fits.
+  function fitLargest(fits, lo, hi) {
+    lo = Math.floor(lo);
+    hi = Math.floor(hi);
+    if (hi <= lo || fits(hi)) return Math.max(lo, hi);
+    while (hi - lo > 1) {
+      var mid = (lo + hi) >> 1;
+      if (fits(mid)) lo = mid;
+      else hi = mid;
+    }
+    return lo;
+  }
+
+  // How far content exceeds its box (scroll size vs client size), ignoring sub-pixel rounding.
+  // Returns null when it fits.
+  function overflowExcess(scrollW, clientW, scrollH, clientH) {
+    var dx = Math.round((scrollW || 0) - (clientW || 0));
+    var dy = Math.round((scrollH || 0) - (clientH || 0));
+    if (dx <= 1 && dy <= 1) return null;
+    return { dx: Math.max(dx, 0), dy: Math.max(dy, 0) };
+  }
+
+  // Combines overflow results (null = fits), keeping the largest excess per axis.
+  function mergeOverflow(a, b) {
+    if (!a) return b || null;
+    if (!b) return a;
+    return { dx: Math.max(a.dx, b.dx), dy: Math.max(a.dy, b.dy) };
+  }
+
+  // Wheel delta in px along the dominant axis (positive = down/right = next).
+  function normalizeWheelDelta(dx, dy, deltaMode) {
+    var d = Math.abs(dy) >= Math.abs(dx) ? dy : dx;
+    if (deltaMode === 1) d *= WHEEL_LINE_PX;
+    else if (deltaMode === 2) d *= WHEEL_PAGE_PX;
+    return d || 0;
+  }
+
+  // One page per scroll gesture. Deltas accumulate up to a threshold; after a page turn the
+  // gesture is locked until wheel events pause (idleMs), the direction reverses, or the deltas
+  // grow again after having decayed (a new swipe during trackpad inertia).
+  function createWheelGesture(options) {
+    options = options || {};
+    var threshold = options.threshold || 40;
+    var idleMs = options.idleMs || 200;
+    var ACCEL_STEPS = 3;
+    var ACCEL_MIN = 10;
+    var ACCEL_RATIO = 1.5;
+    var DECAY_RATIO = 0.7;
+    var REVERSE_MIN = 4;
+
+    var acc = 0;
+    var lastTime = -Infinity;
+    var locked = false;
+    var lockDir = 0;
+    var prevAbs = 0;
+    var peak = 0;
+    var trough = 0;
+    var decayed = false;
+    var rises = 0;
+
+    function lock(dir, abs) {
+      locked = true;
+      lockDir = dir;
+      acc = 0;
+      prevAbs = peak = trough = abs;
+      decayed = false;
+      rises = 0;
+    }
+
+    function releases(dir, abs) {
+      if (dir !== lockDir) return abs >= REVERSE_MIN;
+      rises = abs > prevAbs ? rises + 1 : 0;
+      prevAbs = abs;
+      if (!decayed) {
+        if (abs > peak) peak = abs;
+        else if (abs <= peak * DECAY_RATIO) {
+          decayed = true;
+          trough = abs;
+        }
+        return false;
+      }
+      if (abs < trough) trough = abs;
+      return rises >= ACCEL_STEPS && abs >= ACCEL_MIN && abs >= trough * ACCEL_RATIO;
+    }
+
+    // Returns +1 (next), -1 (previous) or 0.
+    function feed(delta, time) {
+      var abs = Math.abs(delta);
+      if (time - lastTime > idleMs) {
+        acc = 0;
+        locked = false;
+      }
+      lastTime = time;
+      if (!abs) return 0;
+      var dir = delta > 0 ? 1 : -1;
+      if (locked) {
+        if (!releases(dir, abs)) return 0;
+        locked = false;
+        acc = 0;
+      }
+      if (acc && (acc > 0) !== (dir > 0)) acc = 0;
+      acc += delta;
+      if (Math.abs(acc) >= threshold) {
+        lock(dir, abs);
+        return dir;
+      }
+      return 0;
+    }
+
+    function reset() {
+      acc = 0;
+      locked = false;
+      lastTime = -Infinity;
+    }
+
+    return { feed: feed, reset: reset };
+  }
+
+  // Presentation-mode touch, classified when the finger is lifted (5.4, Q31). dx/dy: movement
+  // from the touch start, dt: duration in ms, startY: start position from the top of the screen,
+  // height: screen height. Returns "next" / "prev" (flick: left or up = next, right or down =
+  // previous), "tap", "top-tap" (start in the top 15%: show the close icon) or null.
+  function classifyTouch(dx, dy, dt, startY, height) {
+    var ax = Math.abs(dx);
+    var ay = Math.abs(dy);
+    if (dt <= FLICK_MAX_MS && Math.max(ax, ay) >= FLICK_MIN_PX) {
+      if (ax >= ay) return dx < 0 ? "next" : "prev";
+      return dy < 0 ? "next" : "prev";
+    }
+    if (ax < TAP_SLOP_PX && ay < TAP_SLOP_PX && dt <= TAP_MAX_MS) {
+      return startY < height * TOP_AREA_RATIO ? "top-tap" : "tap";
+    }
+    return null;
+  }
+
+  // Long press on the main pane (5.3): "cancel" once the pointer moved 10px or more, "armed"
+  // after 1 s (mouse: start now; touch: start when the finger is lifted, Q27), else "pending".
+  function pressPhase(elapsed, dx, dy) {
+    if (dx * dx + dy * dy >= LONG_PRESS_SLOP_PX * LONG_PRESS_SLOP_PX) return "cancel";
+    return elapsed >= LONG_PRESS_MS ? "armed" : "pending";
+  }
+
+  // Maps KeyboardEvent.key to an action for the given mode (5.3, 5.5).
+  function keyAction(mode, key) {
+    switch (key) {
+      case "ArrowDown":
+      case "ArrowRight":
+      case "Down":
+      case "Right":
+        return "next";
+      case "ArrowUp":
+      case "ArrowLeft":
+      case "Up":
+      case "Left":
+        return "prev";
+      case "Home":
+        return "first";
+      case "End":
+        return "last";
+      case "Tab":
+        return mode === "present" ? "nav" : "present";
+    }
+    if (mode !== "present") return key === "Enter" ? "present" : null;
+    switch (key) {
+      case " ":
+      case "Spacebar":
+      case "PageDown":
+      case "Enter":
+        return "next";
+      case "PageUp":
+      case "Backspace":
+        return "prev";
+      case "Escape":
+      case "Esc":
+        return "nav";
+    }
+    return null;
+  }
+
+  var internals = {
+    clampIndex: clampIndex,
+    parseHash: parseHash,
+    formatHash: formatHash,
+    computeFit: computeFit,
+    fitLargest: fitLargest,
+    overflowExcess: overflowExcess,
+    mergeOverflow: mergeOverflow,
+    normalizeWheelDelta: normalizeWheelDelta,
+    createWheelGesture: createWheelGesture,
+    classifyTouch: classifyTouch,
+    pressPhase: pressPhase,
+    keyAction: keyAction
+  };
+
+  if (typeof document === "undefined") {
+    globalThis.__cvSlidesViewerInternals = internals;
+    return;
+  }
+
+  /* ---------- DOM helpers ---------- */
+
+  function el(tag, className) {
+    var node = document.createElement(tag);
+    if (className) node.className = className;
+    return node;
+  }
+
+  function each(nodes, fn) {
+    Array.prototype.forEach.call(nodes, fn);
+  }
+
+  function px(value) {
+    return parseFloat(value) || 0;
+  }
+
+  function elementOf(target) {
+    return target && target.nodeType === 1 ? target : target && target.parentElement;
+  }
+
+  function matchesClosest(target, selector) {
+    var node = elementOf(target);
+    return !!(node && node.closest && node.closest(selector));
+  }
+
+  function isEditable(target) {
+    var node = elementOf(target);
+    return !!(node && (node.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(node.tagName)));
+  }
+
+  function fullscreenElement() {
+    return document.fullscreenElement || document.webkitFullscreenElement || null;
+  }
+
+  function swallow(result) {
+    if (result && typeof result.catch === "function") result.catch(function () {});
+  }
+
+  // Must run synchronously inside a user-activated event handler (or within the transient
+  // activation window, as for the mouse long press). Returns false when unsupported.
+  function requestFullscreen() {
+    var root = document.documentElement;
+    try {
+      if (root.requestFullscreen) swallow(root.requestFullscreen({ navigationUI: "hide" }));
+      else if (root.webkitRequestFullscreen) root.webkitRequestFullscreen();
+      else return false;
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function exitFullscreen() {
+    try {
+      if (document.exitFullscreen) swallow(document.exitFullscreen());
+      else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+    } catch (e) {
+      /* already leaving fullscreen */
+    }
+  }
+
+  function whenFontsReady() {
+    if (document.fonts && document.fonts.ready) {
+      return document.fonts.ready.then(
+        function () {},
+        function () {}
+      );
+    }
+    return Promise.resolve();
+  }
+
+  function whenLoaded() {
+    if (document.readyState === "complete") return Promise.resolve();
+    return new Promise(function (resolve) {
+      window.addEventListener("load", resolve, { once: true });
+    });
+  }
+
+  /* ---------- Viewer ---------- */
+
+  function boot() {
+    var deck = document.getElementById("deck");
+    if (!deck || deck.hasAttribute("data-viewer-ready")) return;
+    deck.setAttribute("data-viewer-ready", "");
+
+    var slides = [];
+    for (var c = deck.firstElementChild; c; c = c.nextElementSibling) {
+      if (c.classList.contains("slide")) slides.push(c);
+    }
+    var count = slides.length;
+    var state = { index: -1, mode: "nav" };
+    var suppressClick = false;
+    var lastPointerType = "mouse";
+    var pressState = null; // long press on the main pane (navigation mode)
+    var touchState = null; // touch gesture in presentation mode
+    var closeTimer = 0;
+    var cursorTimer = 0;
+    var lastScreenX = null;
+    var lastScreenY = null;
+    var wheel = createWheelGesture();
+    var overflowReady = false;
+    var overflowTimers = {};
+
+    injectPageNumbers();
+
+    // Layout: the deck is moved once into the stage; afterwards slides are never moved, only
+    // shown/hidden, and modes only change classes on the root (5.2).
+    var root = el("div", "viewer viewer--nav");
+    var main = el("div", "viewer__main");
+    var stage = el("div", "viewer__stage");
+    var list = el("div", "viewer__list");
+    var press = createPressIndicator();
+    var close = createCloseButton();
+    list.setAttribute("role", "listbox");
+    list.setAttribute("aria-label", "スライド一覧");
+    // Let designs scoped by the deck's design class also apply to thumbnail clones.
+    each(deck.classList, function (cls) {
+      if (cls.indexOf("design-") === 0) list.classList.add(cls);
+    });
+    deck.parentNode.insertBefore(root, deck);
+    stage.appendChild(deck);
+    main.appendChild(stage);
+    main.appendChild(press);
+    main.appendChild(close);
+    // The list comes after the main pane in DOM order so getElementById() finds the original
+    // slide content before any (id-preserving) thumbnail clone.
+    root.appendChild(main);
+    root.appendChild(list);
+
+    var thumbs = [];
+    var fragment = document.createDocumentFragment();
+    slides.forEach(function (slide, i) {
+      var thumb = makeThumb(slide, i);
+      thumbs.push(thumb);
+      fragment.appendChild(thumb.item);
+    });
+    list.appendChild(fragment);
+
+    var initial = parseHash(location.hash, count);
+    go(initial === null ? 0 : initial);
+    layout();
+    bindEvents();
+
+    // Measure after fonts are ready (4.10, 5.7). Force style/layout first so font loads start.
+    // Images change the layout too: each slide is checked again when its images finish loading.
+    void list.offsetHeight;
+    watchImages();
+    whenFontsReady().then(function () {
+      fitAllTakahashi();
+      overflowReady = true;
+      checkAllOverflow();
+    });
+    whenLoaded().then(function () {
+      if (overflowReady) checkAllOverflow();
+    });
+
+    window.cvSlidesViewer = {
+      go: go,
+      next: next,
+      prev: prev,
+      enterPresentation: enterPresentation,
+      exitPresentation: exitPresentation,
+      // Handles a key exactly like a keydown on the page (used by the code runner, 6.2).
+      handleKey: function (key, repeat) {
+        return applyKey(String(key), !!repeat);
+      },
+      slides: slides,
+      internals: internals,
+      get index() {
+        return state.index;
+      },
+      get mode() {
+        return state.mode;
+      }
+    };
+
+    /* --- construction --- */
+
+    function injectPageNumbers() {
+      if (deck.getAttribute("data-page-number") !== "true") return;
+      slides.forEach(function (slide, i) {
+        if (slide.classList.contains("slide--title")) return;
+        var num = el("div", "slide__page-number");
+        num.textContent = i + 1 + " / " + count;
+        slide.appendChild(num);
+      });
+    }
+
+    function makeThumb(slide, i) {
+      var item = el("div", "viewer__thumb");
+      var num = el("span", "viewer__thumb-num");
+      var frame = el("div", "viewer__thumb-frame");
+      var canvas = el("div", "viewer__thumb-canvas");
+      var clone = cloneForThumb(slide);
+      item.setAttribute("role", "option");
+      item.setAttribute("aria-selected", "false");
+      item.setAttribute("aria-label", "スライド " + (i + 1));
+      item.setAttribute("data-index", String(i));
+      num.textContent = String(i + 1);
+      canvas.setAttribute("aria-hidden", "true");
+      canvas.inert = true;
+      canvas.appendChild(clone);
+      frame.appendChild(canvas);
+      item.appendChild(num);
+      item.appendChild(frame);
+      return { item: item, frame: frame, clone: clone };
+    }
+
+    function cloneForThumb(slide) {
+      var clone = slide.cloneNode(true);
+      clone.classList.remove("is-current", "is-measuring");
+      clone.setAttribute("data-viewer-clone", "");
+      // Embedded documents and media must not run twice; keep a box with the same classes.
+      each(clone.querySelectorAll("iframe, video, audio, object, embed"), function (node) {
+        var ph = el("div", (node.getAttribute("class") || "") + " viewer__placeholder");
+        if (node.hasAttribute("style")) ph.setAttribute("style", node.getAttribute("style"));
+        node.parentNode.replaceChild(ph, node);
+      });
+      each(clone.querySelectorAll("script"), function (node) {
+        node.parentNode.removeChild(node);
+      });
+      each(clone.querySelectorAll("img"), function (img) {
+        img.decoding = "async";
+      });
+      return clone;
+    }
+
+    function createPressIndicator() {
+      var ns = "http://www.w3.org/2000/svg";
+      var wrap = el("div", "viewer__press");
+      var svg = document.createElementNS(ns, "svg");
+      wrap.setAttribute("aria-hidden", "true");
+      svg.setAttribute("viewBox", "0 0 64 64");
+      ["viewer__press-track", "viewer__press-bar"].forEach(function (cls) {
+        var circle = document.createElementNS(ns, "circle");
+        circle.setAttribute("cx", "32");
+        circle.setAttribute("cy", "32");
+        circle.setAttribute("r", "26");
+        circle.setAttribute("class", cls);
+        svg.appendChild(circle);
+      });
+      wrap.appendChild(svg);
+      var label = el("span", "viewer__press-label");
+      label.textContent = "指を離すと開始";
+      wrap.appendChild(label);
+      return wrap;
+    }
+
+    // Close icon for touch devices (5.4): shown for 3 s after a tap at the top of the screen.
+    function createCloseButton() {
+      var button = el("button", "viewer__close");
+      button.type = "button";
+      button.tabIndex = -1;
+      button.setAttribute("aria-label", "ナビゲーションモードに戻る");
+      button.textContent = "\u00d7";
+      return button;
+    }
+
+    /* --- state --- */
+
+    function go(index) {
+      if (!count) return;
+      index = clampIndex(index, count);
+      if (index === state.index) return;
+      var previous = state.index;
+      if (previous >= 0) {
+        slides[previous].classList.remove("is-current");
+        thumbs[previous].item.classList.remove("is-selected");
+        thumbs[previous].item.setAttribute("aria-selected", "false");
+      }
+      state.index = index;
+      slides[index].classList.add("is-current");
+      thumbs[index].item.classList.add("is-selected");
+      thumbs[index].item.setAttribute("aria-selected", "true");
+      if (state.mode === "nav") scrollThumbIntoView(index);
+      writeHash(index);
+      emit("viewer:slidechange", { index: index, previousIndex: previous, mode: state.mode });
+    }
+
+    function next() {
+      go(state.index + 1);
+    }
+
+    function prev() {
+      go(state.index - 1);
+    }
+
+    function setMode(mode) {
+      if (state.mode === mode) return false;
+      state.mode = mode;
+      root.classList.toggle("viewer--nav", mode === "nav");
+      root.classList.toggle("viewer--present", mode === "present");
+      layout();
+      emit("viewer:modechange", { mode: mode, index: state.index });
+      return true;
+    }
+
+    function enterPresentation() {
+      if (!count || state.mode === "present") return;
+      cancelLongPress();
+      // Request first, while the user activation is certainly still valid. If the request is
+      // unsupported or rejected, the CSS already fills the window (5.2).
+      requestFullscreen();
+      setMode("present");
+      wheel.reset();
+      armCursorTimer();
+    }
+
+    function exitPresentation() {
+      if (state.mode !== "present") return;
+      touchState = null;
+      hideCloseIcon();
+      setMode("nav");
+      clearTimeout(cursorTimer);
+      root.classList.remove("viewer--cursor-hidden");
+      if (fullscreenElement()) exitFullscreen();
+      scrollThumbIntoView(state.index);
+    }
+
+    function emit(name, detail) {
+      try {
+        deck.dispatchEvent(new CustomEvent(name, { detail: detail }));
+      } catch (e) {
+        /* CustomEvent unsupported */
+      }
+    }
+
+    function writeHash(index) {
+      var hash = formatHash(index);
+      if (location.hash === hash) return;
+      try {
+        history.replaceState(history.state, "", hash);
+      } catch (e) {
+        try {
+          location.replace(hash);
+        } catch (e2) {
+          /* ignore */
+        }
+      }
+    }
+
+    /* --- layout --- */
+
+    function layout() {
+      var box = stage.getBoundingClientRect();
+      var fit = computeFit(box.width, box.height, CANVAS_W, CANVAS_H);
+      deck.style.transform = "translate(" + fit.x + "px, " + fit.y + "px) scale(" + fit.scale + ")";
+      if (thumbs.length) {
+        var w = thumbs[0].frame.getBoundingClientRect().width;
+        if (w > 0) list.style.setProperty("--thumb-scale", String(w / CANVAS_W));
+      }
+    }
+
+    function scrollThumbIntoView(index) {
+      var item = thumbs[index] && thumbs[index].item;
+      if (!item) return;
+      var pad = 8;
+      var lr = list.getBoundingClientRect();
+      var ir = item.getBoundingClientRect();
+      if (ir.top < lr.top + pad) list.scrollTop += ir.top - lr.top - pad;
+      else if (ir.bottom > lr.bottom - pad) list.scrollTop += ir.bottom - lr.bottom + pad;
+      if (ir.left < lr.left + pad) list.scrollLeft += ir.left - lr.left - pad;
+      else if (ir.right > lr.right - pad) list.scrollLeft += ir.right - lr.right + pad;
+    }
+
+    /* --- measurement (after fonts are ready) --- */
+
+    function withMeasuring(targets, fn) {
+      targets.forEach(function (s) {
+        s.classList.add("is-measuring");
+      });
+      try {
+        fn();
+      } finally {
+        targets.forEach(function (s) {
+          s.classList.remove("is-measuring");
+        });
+      }
+    }
+
+    function fitTakahashi(slide) {
+      var text = slide.querySelector(".takahashi__text");
+      if (!text) return 0;
+      var box = text.parentElement;
+      var bs = getComputedStyle(box);
+      var availW = box.clientWidth - px(bs.paddingLeft) - px(bs.paddingRight);
+      var availH = box.clientHeight - px(bs.paddingTop) - px(bs.paddingBottom);
+      var max = px(getComputedStyle(slide).getPropertyValue("--takahashi-max")) || TAKAHASHI_MAX_DEFAULT;
+      text.classList.add("is-fitting");
+      var ts = getComputedStyle(text);
+      var size = fitLargest(
+        function (n) {
+          text.style.fontSize = n + "px";
+          return (
+            text.offsetWidth + px(ts.marginLeft) + px(ts.marginRight) <= availW &&
+            text.offsetHeight + px(ts.marginTop) + px(ts.marginBottom) <= availH
+          );
+        },
+        1,
+        max
+      );
+      text.style.fontSize = size + "px";
+      text.classList.remove("is-fitting");
+      return size;
+    }
+
+    function fitAllTakahashi() {
+      slides.forEach(function (slide, i) {
+        if (!slide.classList.contains("slide--takahashi")) return;
+        var size = 0;
+        withMeasuring([slide], function () {
+          size = fitTakahashi(slide);
+        });
+        var cloneText = size && thumbs[i].clone.querySelector(".takahashi__text");
+        if (cloneText) cloneText.style.fontSize = size + "px";
+      });
+    }
+
+    // Content pages only: image pages never overflow, Takahashi text is fitted, code sample
+    // pages scroll. Code lines are clipped by their own box, and columns / image figures can be
+    // squeezed below their content, so those are measured too.
+    function measureOverflow(slide) {
+      if (slide.classList.contains("slide--takahashi") || slide.classList.contains("slide--image")) {
+        return null;
+      }
+      var body = slide.querySelector(".slide__body");
+      if (!body) return null;
+      var result = overflowExcess(body.scrollWidth, body.clientWidth, body.scrollHeight, body.clientHeight);
+      var code = false;
+      each(body.querySelectorAll("pre, .column, .figure--image"), function (node) {
+        var r = overflowExcess(node.scrollWidth, node.clientWidth, node.scrollHeight, node.clientHeight);
+        if (r && node.tagName === "PRE") code = true;
+        result = mergeOverflow(result, r);
+      });
+      if (result) result.code = code;
+      return result;
+    }
+
+    function checkSlideOverflow(i) {
+      var result = null;
+      withMeasuring([slides[i]], function () {
+        result = measureOverflow(slides[i]);
+      });
+      setOverflowMark(i, result);
+    }
+
+    function checkAllOverflow() {
+      var results = [];
+      withMeasuring(slides, function () {
+        results = slides.map(measureOverflow);
+      });
+      results.forEach(function (result, i) {
+        setOverflowMark(i, result);
+      });
+    }
+
+    // Adds or removes the ⚠ mark; warns on the console when a slide starts to overflow.
+    function setOverflowMark(i, result) {
+      var thumb = thumbs[i];
+      var mark = thumb.frame.querySelector(".viewer__thumb-warn");
+      if (!result) {
+        if (mark) mark.parentNode.removeChild(mark);
+        thumb.item.classList.remove("is-overflow");
+        return;
+      }
+      var detail = "縦 " + result.dy + "px / 横 " + result.dx + "px";
+      var what = result.code ? "内容(コード片の行を含む)" : "内容";
+      if (!mark) {
+        mark = el("span", "viewer__thumb-warn");
+        mark.textContent = "⚠︎";
+        thumb.frame.appendChild(mark);
+        thumb.item.classList.add("is-overflow");
+        console.warn(
+          "[cv_slides] スライド " + (i + 1) + ": " + what + "が本文領域からはみ出しています(" + detail + ")"
+        );
+      }
+      mark.title = what + "がはみ出しています(" + detail + ")";
+    }
+
+    function scheduleOverflowCheck(i) {
+      if (!overflowReady) return; // the first full check runs once fonts are ready
+      clearTimeout(overflowTimers[i]);
+      overflowTimers[i] = setTimeout(function () {
+        delete overflowTimers[i];
+        checkSlideOverflow(i);
+      }, 30);
+    }
+
+    // Images that are still loading re-check their slide when they finish (or fail).
+    function watchImages() {
+      slides.forEach(function (slide, i) {
+        each(slide.querySelectorAll("img"), function (img) {
+          if (img.complete) return;
+          var done = function () {
+            img.removeEventListener("load", done);
+            img.removeEventListener("error", done);
+            scheduleOverflowCheck(i);
+          };
+          img.addEventListener("load", done);
+          img.addEventListener("error", done);
+        });
+      });
+    }
+
+    /* --- input --- */
+
+    function bindEvents() {
+      window.addEventListener("keydown", onKeyDown);
+      window.addEventListener("hashchange", function () {
+        var index = parseHash(location.hash, count);
+        if (index !== null) go(index);
+      });
+      window.addEventListener("resize", layout);
+      if (window.ResizeObserver) {
+        var ro = new ResizeObserver(layout);
+        ro.observe(stage);
+        if (thumbs.length) ro.observe(thumbs[0].frame);
+      }
+      document.addEventListener("fullscreenchange", onFullscreenChange);
+      document.addEventListener("webkitfullscreenchange", onFullscreenChange);
+
+      list.addEventListener("click", function (e) {
+        var node = elementOf(e.target);
+        var item = node && node.closest(".viewer__thumb");
+        if (item && state.mode === "nav") go(Number(item.getAttribute("data-index")));
+      });
+
+      main.addEventListener("pointerdown", onMainPointerDown);
+      window.addEventListener("pointermove", onPointerMove, { passive: true });
+      window.addEventListener("pointerup", onPointerEnd);
+      window.addEventListener("pointercancel", onPointerEnd);
+      window.addEventListener("blur", cancelLongPress);
+      main.addEventListener("click", onMainClick, true);
+      main.addEventListener("dblclick", onMainDblClick);
+      main.addEventListener("wheel", onWheel, { passive: false });
+      main.addEventListener("contextmenu", function (e) {
+        if (pressState || lastPointerType !== "mouse") e.preventDefault();
+      });
+      close.addEventListener("click", function (e) {
+        e.preventDefault();
+        exitPresentation();
+      });
+      // Safari's own pinch gesture events (touch-action covers the other browsers).
+      document.addEventListener("gesturestart", function (e) {
+        if (state.mode === "present") e.preventDefault();
+      });
+      main.addEventListener("dragstart", function (e) {
+        e.preventDefault();
+      });
+    }
+
+    function onKeyDown(e) {
+      if (e.defaultPrevented || e.isComposing || e.altKey || e.ctrlKey || e.metaKey) return;
+      if (isEditable(e.target)) return;
+      if (applyKey(e.key, e.repeat)) e.preventDefault();
+    }
+
+    // Shared by keydown and keys forwarded from code runner iframes (6.2). Returns true when
+    // the key was handled.
+    function applyKey(key, repeat) {
+      var action = keyAction(state.mode, key);
+      if (!action) return false;
+      switch (action) {
+        case "next":
+          next();
+          break;
+        case "prev":
+          prev();
+          break;
+        case "first":
+          go(0);
+          break;
+        case "last":
+          go(count - 1);
+          break;
+        case "present":
+          if (!repeat) enterPresentation();
+          break;
+        case "nav":
+          if (!repeat) exitPresentation();
+          break;
+      }
+      return true;
+    }
+
+    function onFullscreenChange() {
+      if (fullscreenElement()) {
+        // Fullscreen arrived after the user already went back to navigation mode.
+        if (state.mode !== "present") exitFullscreen();
+      } else if (state.mode === "present") {
+        // ESC/F11 handled by the browser; the keydown may never reach the page (5.2).
+        exitPresentation();
+      }
+    }
+
+    // Touch and pen are handled alike ("touch" below means any pointer that is not a mouse).
+    function onMainPointerDown(e) {
+      suppressClick = false;
+      lastPointerType = e.pointerType || "mouse";
+      var touch = lastPointerType !== "mouse";
+      if (state.mode === "present") {
+        if (touch) startTouch(e);
+        return;
+      }
+      if (!e.isPrimary) {
+        cancelLongPress(); // a second finger (pinch) is not a long press
+        return;
+      }
+      if (state.mode !== "nav" || e.button !== 0) return;
+      if (matchesClosest(e.target, NO_CLICK_TURN)) return;
+      startLongPress(e, touch);
+    }
+
+    // Mouse: presentation starts after 1 s. Touch: after 1 s the indicator says "指を離すと開始"
+    // and presentation starts on release, the user activation the Fullscreen API needs (Q27).
+    function startLongPress(e, touch) {
+      cancelLongPress();
+      var r = main.getBoundingClientRect();
+      var y = e.clientY - r.top;
+      press.style.left = e.clientX - r.left + "px";
+      // Above the finger, so that it stays visible.
+      press.style.top = (touch ? Math.max(48, y - 96) : y) + "px";
+      press.classList.remove("is-active", "is-armed");
+      void press.offsetWidth; // restart the progress animation
+      press.classList.add("is-active");
+      pressState = {
+        id: e.pointerId,
+        x: e.clientX,
+        y: e.clientY,
+        t: e.timeStamp,
+        touch: touch,
+        timer: setTimeout(function () {
+          if (touch) {
+            press.classList.add("is-armed");
+            return;
+          }
+          pressState = null;
+          press.classList.remove("is-active");
+          suppressClick = true; // the release that follows must not turn the page
+          enterPresentation();
+        }, LONG_PRESS_MS)
+      };
+    }
+
+    function cancelLongPress() {
+      if (!pressState) return;
+      clearTimeout(pressState.timer);
+      pressState = null;
+      press.classList.remove("is-active", "is-armed");
+    }
+
+    // pointerup / pointercancel of the long-press pointer.
+    function endLongPress(e) {
+      var ps = pressState;
+      var phase =
+        ps.touch && e.type === "pointerup" ? pressPhase(e.timeStamp - ps.t, e.clientX - ps.x, e.clientY - ps.y) : "cancel";
+      cancelLongPress();
+      if (phase !== "armed") return;
+      suppressClick = true;
+      enterPresentation(); // synchronously inside pointerup (user activation)
+    }
+
+    function startTouch(e) {
+      touchState = null;
+      // A second finger is not a flick or a tap; touches on links, buttons and the code runner
+      // act on the element itself (5.5).
+      if (!e.isPrimary || matchesClosest(e.target, NO_CLICK_TURN)) return;
+      var r = main.getBoundingClientRect();
+      touchState = {
+        id: e.pointerId,
+        x: e.clientX,
+        y: e.clientY,
+        t: e.timeStamp,
+        top: e.clientY - r.top,
+        height: r.height
+      };
+    }
+
+    function endTouch(e) {
+      var ts = touchState;
+      touchState = null;
+      if (e.type !== "pointerup" || state.mode !== "present") return;
+      // The click a tap produces never turns the page by itself: the gesture decides.
+      suppressClick = true;
+      var action = classifyTouch(e.clientX - ts.x, e.clientY - ts.y, e.timeStamp - ts.t, ts.top, ts.height);
+      if (action === "next" || action === "tap") next();
+      else if (action === "prev") prev();
+      else if (action === "top-tap") showCloseIcon();
+    }
+
+    function showCloseIcon() {
+      clearTimeout(closeTimer);
+      root.classList.add("viewer--close-visible");
+      closeTimer = setTimeout(hideCloseIcon, CLOSE_ICON_MS);
+    }
+
+    function hideCloseIcon() {
+      clearTimeout(closeTimer);
+      root.classList.remove("viewer--close-visible");
+    }
+
+    function onPointerMove(e) {
+      if (pressState && e.pointerId === pressState.id) {
+        var dx = e.clientX - pressState.x;
+        var dy = e.clientY - pressState.y;
+        if (pressPhase(0, dx, dy) === "cancel") cancelLongPress();
+      }
+      if (e.pointerType === "mouse") {
+        // Browsers send synthetic moves after layout changes; only real movement counts.
+        if (e.screenX === lastScreenX && e.screenY === lastScreenY) return;
+        lastScreenX = e.screenX;
+        lastScreenY = e.screenY;
+        if (state.mode === "present") armCursorTimer();
+      }
+    }
+
+    function onPointerEnd(e) {
+      if (pressState && e.pointerId === pressState.id) endLongPress(e);
+      if (touchState && e.pointerId === touchState.id) endTouch(e);
+    }
+
+    function onMainClick(e) {
+      if (suppressClick) {
+        suppressClick = false;
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+      if (state.mode !== "present" || matchesClosest(e.target, NO_CLICK_TURN)) return;
+      next();
+    }
+
+    function onMainDblClick(e) {
+      if (state.mode !== "nav" || matchesClosest(e.target, NO_CLICK_TURN)) return;
+      // Mouse only: browsers also report two taps as dblclick, even when the second touch was a
+      // cancelled long press. Touch starts presentation with the long press (5.3).
+      if (lastPointerType !== "mouse") return;
+      var sel = window.getSelection && window.getSelection();
+      if (sel && sel.removeAllRanges) sel.removeAllRanges();
+      enterPresentation();
+    }
+
+    function onWheel(e) {
+      if (state.mode !== "present" || e.ctrlKey) return;
+      if (matchesClosest(e.target, NO_WHEEL_TURN)) return;
+      e.preventDefault();
+      var dir = wheel.feed(normalizeWheelDelta(e.deltaX, e.deltaY, e.deltaMode), e.timeStamp);
+      if (dir > 0) next();
+      else if (dir < 0) prev();
+    }
+
+    function armCursorTimer() {
+      clearTimeout(cursorTimer);
+      root.classList.remove("viewer--cursor-hidden");
+      if (state.mode !== "present") return;
+      cursorTimer = setTimeout(function () {
+        if (state.mode === "present") root.classList.add("viewer--cursor-hidden");
+      }, CURSOR_IDLE_MS);
+    }
+  }
+
+  if (document.getElementById("deck")) boot();
+  else document.addEventListener("DOMContentLoaded", boot);
+})();
+</script>
+<script id="runner-js">
+/* cv_slides code runner: sandboxed iframes for code sample pages (6). No dependencies, no build
+   step. Runs after viewer.js and only uses its public hooks (window.cvSlidesViewer and the
+   viewer:slidechange event on #deck). Never write the closing script tag literally in this file:
+   it is inlined into a <script> element. */
+(function () {
+  "use strict";
+
+  var LIMITER_PROCESSOR = "cv-slides-limiter";
+  var MAX_LINES = 1000;
+  var SANDBOX = "allow-scripts"; // 6.7: no allow-same-origin (it breaks Blob URL worklets on file://)
+  var FORWARDED_KEYS = [
+    "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Up", "Down", "Left", "Right",
+    " ", "Spacebar", "PageUp", "PageDown", "Home", "End", "Enter", "Tab", "Escape", "Esc"
+  ];
+
+  /* ---------- Pure logic (tested by scripts/runtime/dev/runner-logic.test.mjs) ----------
+     formatConsoleArgs, createLimiterCore and limiterWorkletMain are also serialized with
+     Function.prototype.toString into the iframe / the AudioWorklet, so they must not use any
+     outer variable. */
+
+  // Formats console arguments as one line of text: strings as they are, everything else in a
+  // JSON-like notation with cycle detection, a depth limit and size limits.
+  function formatConsoleArgs(args, options) {
+    options = options || {};
+    var maxDepth = options.maxDepth != null ? options.maxDepth : 2;
+    var maxItems = options.maxItems != null ? options.maxItems : 100;
+    var maxLength = options.maxLength != null ? options.maxLength : 10000;
+    var IDENT = /^[A-Za-z_$][\w$]*$/;
+    var stack = [];
+
+    function typeName(v) {
+      try {
+        var proto = Object.getPrototypeOf(v);
+        if (proto === null) return "[Object: null prototype]";
+        var ctor = proto && proto.constructor;
+        return (ctor && typeof ctor.name === "string" && ctor.name) || "Object";
+      } catch (e) {
+        return "Object";
+      }
+    }
+
+    function formatError(e) {
+      var name = "Error";
+      var message = "";
+      try {
+        name = e.name || typeName(e);
+        message = e.message != null ? String(e.message) : "";
+      } catch (x) {
+        /* exotic error object */
+      }
+      return message ? name + ": " + message : name;
+    }
+
+    function key(k) {
+      return IDENT.test(k) ? k : JSON.stringify(k);
+    }
+
+    function list(open, items, close, more) {
+      if (more > 0) items.push("... " + more + " more");
+      return items.length ? open + " " + items.join(", ") + " " + close : open + close;
+    }
+
+    function fmt(v, depth, top) {
+      var t = typeof v;
+      if (t === "string") return top ? v : JSON.stringify(v);
+      if (t === "number") return Object.is(v, -0) ? "-0" : String(v);
+      if (t === "bigint") return String(v) + "n";
+      if (t === "boolean" || v === undefined || v === null) return String(v);
+      if (t === "symbol") return v.toString();
+      if (t === "function") {
+        var src = "";
+        try {
+          src = Function.prototype.toString.call(v);
+        } catch (e) {
+          /* revoked proxy etc. */
+        }
+        var kind = /^class[\s{]/.test(src) ? "class" : "Function";
+        return "[" + kind + " " + (v.name || "(anonymous)") + "]";
+      }
+      if (stack.indexOf(v) >= 0) return "[Circular]";
+      if (v instanceof Error) return formatError(v);
+      if (v instanceof Date) return isNaN(v.getTime()) ? "Invalid Date" : v.toISOString();
+      if (v instanceof RegExp) return String(v);
+      var name = typeName(v);
+      if (typeof ArrayBuffer !== "undefined") {
+        if (v instanceof ArrayBuffer) return "ArrayBuffer { byteLength: " + v.byteLength + " }";
+        if (ArrayBuffer.isView(v) && !(v instanceof DataView)) {
+          if (depth > maxDepth) return "[" + name + "(" + v.length + ")]";
+          var n = Math.min(v.length, maxItems);
+          var vals = [];
+          for (var i = 0; i < n; i++) vals.push(fmt(v[i], depth + 1, false));
+          return name + "(" + v.length + ") " + list("[", vals, "]", v.length - n);
+        }
+      }
+      var isArray = Array.isArray(v);
+      var isMap = typeof Map !== "undefined" && v instanceof Map;
+      var isSet = typeof Set !== "undefined" && v instanceof Set;
+      if (depth > maxDepth) {
+        if (isArray) return "[Array(" + v.length + ")]";
+        if (isMap || isSet) return "[" + name + "(" + v.size + ")]";
+        return name === "Object" ? "[Object]" : "[" + name + "]";
+      }
+      stack.push(v);
+      try {
+        var items = [];
+        var more = 0;
+        if (isArray) {
+          var len = Math.min(v.length, maxItems);
+          for (var a = 0; a < len; a++) items.push(fmt(v[a], depth + 1, false));
+          return list("[", items, "]", v.length - len);
+        }
+        if (isMap || isSet) {
+          v.forEach(function (value, k) {
+            if (items.length >= maxItems) more++;
+            else items.push(isMap ? fmt(k, depth + 1, false) + " => " + fmt(value, depth + 1, false) : fmt(value, depth + 1, false));
+          });
+          return name + "(" + v.size + ") " + list("{", items, "}", more);
+        }
+        var keys = Object.keys(v);
+        for (var j = 0; j < keys.length; j++) {
+          if (items.length >= maxItems) {
+            more = keys.length - j;
+            break;
+          }
+          var value;
+          try {
+            value = fmt(v[keys[j]], depth + 1, false);
+          } catch (e) {
+            value = "[Getter error]";
+          }
+          items.push(key(keys[j]) + ": " + value);
+        }
+        var body = list("{", items, "}", more);
+        return name === "Object" ? body : name + " " + body;
+      } finally {
+        stack.pop();
+      }
+    }
+
+    var parts = [];
+    for (var p = 0; p < args.length; p++) {
+      var s;
+      try {
+        s = fmt(args[p], 0, true);
+      } catch (e) {
+        s = "[Unformattable]";
+      }
+      parts.push(s);
+    }
+    var out = parts.join(" ");
+    return out.length > maxLength ? out.slice(0, maxLength) + "…" : out;
+  }
+
+  // Look-ahead peak limiter (6.4). Order: NaN/±Infinity -> 0, peak limiter (threshold,
+  // look-ahead, release), hard clip to ±1. The audio is delayed by D = look-ahead samples; the
+  // gain is the minimum required gain over the last D+1 samples, smoothed for release
+  // (instant down, exponential up) and then averaged over D+1 samples. Every value in that
+  // average is <= the gain a peak needs, so the gain has fully reached it when the peak leaves
+  // the delay line, and the attack is a smooth ramp instead of a step.
+  function createLimiterCore(sampleRate, options) {
+    options = options || {};
+    var thresholdDb = options.thresholdDb != null ? options.thresholdDb : -1;
+    var threshold = Math.pow(10, thresholdDb / 20);
+    var lookahead = options.lookahead != null ? options.lookahead : 0.005;
+    var release = options.release != null ? options.release : 0.1;
+    var channels = options.channels || 2;
+    var D = Math.max(1, Math.round(lookahead * sampleRate));
+    var W = D + 1;
+    var releaseCoef = 1 - Math.exp(-1 / (Math.max(release, 1e-4) * sampleRate));
+
+    var delay = [];
+    for (var c = 0; c < channels; c++) delay.push(new Float32Array(D));
+    var delayPos = 0;
+    var cap = W + 1;
+    var dqVal = new Float64Array(cap);
+    var dqIdx = new Float64Array(cap);
+    var dqHead = 0;
+    var dqSize = 0;
+    var box = new Float64Array(W).fill(1);
+    var boxPos = 0;
+    var rel = 1;
+    var n = 0;
+    var stats = { nan: false, peak: 0, minGain: 1 };
+    var xs = new Float64Array(channels);
+
+    function process(input, output, frames) {
+      var inCh = input ? input.length : 0;
+      var outCh = Math.min(output.length, channels);
+      var sum = 0;
+      for (var b = 0; b < W; b++) sum += box[b]; // resync the running sum once per block
+      stats.nan = false;
+      stats.peak = 0;
+      stats.minGain = 1;
+      for (var i = 0; i < frames; i++) {
+        var peak = 0;
+        for (var ch = 0; ch < channels; ch++) {
+          var src = inCh === 0 ? null : inCh === 1 ? input[0] : input[ch];
+          var x = src ? src[i] : 0;
+          if (x - x !== 0) {
+            // NaN or ±Infinity
+            x = 0;
+            stats.nan = true;
+          }
+          xs[ch] = x;
+          var ax = x < 0 ? -x : x;
+          if (ax > peak) peak = ax;
+        }
+        if (peak > stats.peak) stats.peak = peak;
+        var need = peak > threshold ? threshold / peak : 1;
+        // sliding minimum over the last W samples (monotonic deque)
+        while (dqSize > 0 && dqVal[(dqHead + dqSize - 1) % cap] >= need) dqSize--;
+        var at = (dqHead + dqSize) % cap;
+        dqVal[at] = need;
+        dqIdx[at] = n;
+        dqSize++;
+        while (dqIdx[dqHead] <= n - W) {
+          dqHead = (dqHead + 1) % cap;
+          dqSize--;
+        }
+        var h = dqVal[dqHead];
+        rel = h < rel ? h : rel + (h - rel) * releaseCoef;
+        sum += rel - box[boxPos];
+        box[boxPos] = rel;
+        boxPos = boxPos + 1 === W ? 0 : boxPos + 1;
+        var gain = sum / W;
+        if (gain > 1) gain = 1;
+        if (gain < stats.minGain) stats.minGain = gain;
+        for (var oc = 0; oc < channels; oc++) {
+          var line = delay[oc];
+          var y = line[delayPos] * gain;
+          line[delayPos] = xs[oc];
+          if (y > 1) y = 1;
+          else if (y < -1) y = -1;
+          if (oc < outCh) output[oc][i] = y;
+        }
+        delayPos = delayPos + 1 === D ? 0 : delayPos + 1;
+        n++;
+      }
+      return stats;
+    }
+
+    return { process: process, delay: D, threshold: threshold };
+  }
+
+  // Runs inside the AudioWorkletGlobalScope (AudioWorkletProcessor, registerProcessor and
+  // sampleRate are globals there).
+  function limiterWorkletMain(createLimiterCore, name) {
+    class CvSlidesLimiter extends AudioWorkletProcessor {
+      constructor(options) {
+        super();
+        var o = (options && options.processorOptions) || {};
+        this.core = createLimiterCore(sampleRate, o);
+        this.reportEvery = Math.max(1, Math.round(((o.reportInterval || 0.05) * sampleRate) / 128));
+        this.blocks = 0;
+        this.peak = 0;
+        this.minGain = 1;
+        this.nanReported = false;
+      }
+      process(inputs, outputs) {
+        var output = outputs[0] || [];
+        var frames = output.length ? output[0].length : 128;
+        var r = this.core.process(inputs[0] || [], output, frames);
+        if (r.nan && !this.nanReported) {
+          this.nanReported = true;
+          this.port.postMessage({ type: "nan" });
+        }
+        if (r.peak > this.peak) this.peak = r.peak;
+        if (r.minGain < this.minGain) this.minGain = r.minGain;
+        if (++this.blocks >= this.reportEvery) {
+          this.port.postMessage({ type: "level", peak: this.peak, gr: -20 * Math.log10(Math.max(this.minGain, 1e-9)) });
+          this.blocks = 0;
+          this.peak = 0;
+          this.minGain = 1;
+        }
+        return true;
+      }
+    }
+    registerProcessor(name, CvSlidesLimiter);
+  }
+
+  function limiterModuleSource() {
+    return "(" + limiterWorkletMain.toString() + ")(" + createLimiterCore.toString() + ", " +
+      JSON.stringify(LIMITER_PROCESSOR) + ");\n";
+  }
+
+  // JSON for embedding into an inline script: no "<" so nothing can close the element.
+  function jsonForScript(value) {
+    return JSON.stringify(value).replace(/</g, "\\u003c");
+  }
+
+  // The run code's file name in console error locations (6.3): runner__data `name` without control
+  // characters and line terminators (they would end the `//# sourceURL=` comment early).
+  function scriptName(name) {
+    var s = typeof name === "string" ? name.replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]/g, "").trim() : "";
+    return s || "run.js";
+  }
+
+  // The `//# sourceURL=` value for a name: V8 ignores the comment when the value has whitespace or
+  // a quote, so those are percent-encoded. where() shows the name again for this value.
+  function sourceUrlFor(name) {
+    return name.replace(/[\s"']/g, function (c) {
+      return c === "'" ? "%27" : encodeURIComponent(c);
+    });
+  }
+
+  function cssValue(value) {
+    return String(value || "").replace(/[<>{};]/g, "").trim();
+  }
+
+  /* ---------- Code inside the iframe ---------- */
+
+  // The bootstrap of the iframe document. Receives the code through postMessage ("init"),
+  // runs it as a module script on ▶ Run and talks to the parent with {cvRunner: 1, type}.
+  function frameMain(cfg, formatConsoleArgs, limiterSource) {
+    var parentWin = window.parent;
+    var runBtn = document.getElementById("run");
+    var stopBtn = document.getElementById("stop");
+    var statusOut = document.getElementById("out");
+    var statusLimit = document.getElementById("limit");
+    var resumeBtn = document.getElementById("resume");
+    var data = null;
+    var running = false;
+    var ctx = null;
+    var output = null;
+    var assetCache = {};
+    var lastActive = -1e9;
+    var lastLimit = -1e9;
+    var nanWarned = false;
+
+    function send(msg) {
+      msg.cvRunner = 1;
+      parentWin.postMessage(msg, "*");
+    }
+
+    function format(args) {
+      try {
+        return formatConsoleArgs(args, { maxDepth: 2, maxItems: 100, maxLength: 10000 });
+      } catch (e) {
+        return "[format error]";
+      }
+    }
+
+    function emit(level, args) {
+      send({ type: "console", level: level, text: format(args) });
+    }
+
+    ["log", "info", "warn", "error", "debug"].forEach(function (level) {
+      var original = console[level];
+      console[level] = function () {
+        var args = Array.prototype.slice.call(arguments);
+        emit(level, args);
+        if (original) {
+          try {
+            original.apply(console, args);
+          } catch (e) {
+            /* ignore */
+          }
+        }
+      };
+    });
+
+    function where(file, line, col) {
+      if (!line) return "";
+      var f = String(file || "");
+      var name = f === cfg.sourceUrl ? cfg.name : f.split(/[\/\\]/).pop() || cfg.name;
+      return " (" + name + ":" + line + (col ? ":" + col : "") + ")";
+    }
+
+    window.addEventListener("error", function (e) {
+      var text = e.error !== undefined && e.error !== null ? format([e.error]) : e.message || "Error";
+      if (!/^Uncaught\b/.test(text)) text = "Uncaught " + text;
+      send({ type: "console", level: "error", text: text + where(e.filename, e.lineno, e.colno) });
+    });
+
+    window.addEventListener("unhandledrejection", function (e) {
+      send({ type: "console", level: "error", text: "Uncaught (in promise) " + format([e.reason]) });
+    });
+
+    var forwarded = {};
+    cfg.keys.forEach(function (k) {
+      forwarded[k] = true;
+    });
+    window.addEventListener("keydown", function (e) {
+      if (e.defaultPrevented || e.isComposing || e.altKey || e.ctrlKey || e.metaKey) return;
+      if (!forwarded[e.key]) return;
+      var t = e.target;
+      if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+      e.preventDefault();
+      send({ type: "key", key: e.key, repeat: !!e.repeat });
+    });
+
+    window.addEventListener("pagehide", function () {
+      if (ctx && ctx.state !== "closed") ctx.close().catch(function () {});
+    });
+
+    /* --- slide API (6.6) --- */
+
+    function decodeBase64(b64) {
+      var bin = atob(b64 || "");
+      var bytes = new Uint8Array(bin.length);
+      for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      return bytes;
+    }
+
+    function assetHandle(path) {
+      var assets = (data && data.assets) || {};
+      if (typeof path !== "string" || !Object.prototype.hasOwnProperty.call(assets, path)) {
+        throw new Error('slide.asset: "' + path + '" は assets に指定されていません');
+      }
+      var entry = assets[path];
+      var cache = assetCache[path] || (assetCache[path] = {});
+      function bytes() {
+        if (!cache.bytes) cache.bytes = decodeBase64(entry.data);
+        return cache.bytes;
+      }
+      return Object.freeze({
+        path: path,
+        type: entry.type || "application/octet-stream",
+        bytes: function () {
+          return bytes().slice().buffer;
+        },
+        text: function () {
+          return new TextDecoder().decode(bytes());
+        },
+        url: function () {
+          if (!cache.url) cache.url = URL.createObjectURL(new Blob([bytes()], { type: entry.type || "application/octet-stream" }));
+          return cache.url;
+        }
+      });
+    }
+
+    var LEVELS = { log: 1, info: 1, warn: 1, error: 1, debug: 1 };
+    window.slide = Object.freeze({
+      audioContext: function () {
+        if (!ctx) throw new Error("slide.audioContext: AudioContext を使えません");
+        return ctx;
+      },
+      audioOutput: function () {
+        if (!output) throw new Error("slide.audioOutput: AudioContext を使えません");
+        return output;
+      },
+      asset: assetHandle,
+      connectPort: function (port) {
+        if (!port || typeof port.addEventListener !== "function") throw new TypeError("slide.connectPort: MessagePort を渡してください");
+        port.addEventListener("message", function (e) {
+          var m = e.data;
+          if (!m || m.type !== "log") return;
+          emit(LEVELS[m.level] ? m.level : "log", Array.isArray(m.args) ? m.args : [m.args]);
+        });
+        if (port.start) port.start();
+      }
+    });
+
+    /* --- audio: limiter in front of the destination (6.4) --- */
+
+    function onLevel(peak, gr) {
+      var now = performance.now();
+      if (peak > 1e-4) lastActive = now;
+      if (gr >= 3) lastLimit = now;
+      renderStatus();
+    }
+
+    function renderStatus() {
+      var now = performance.now();
+      var live = !!ctx && ctx.state === "running";
+      statusOut.hidden = !(live && now - lastActive < 300);
+      statusLimit.hidden = !(live && now - lastLimit < 300);
+      resumeBtn.hidden = !(running && ctx && ctx.state === "suspended");
+    }
+
+    function warnNaN() {
+      if (nanWarned) return;
+      nanWarned = true;
+      emit("warn", ["[リミッター] NaN / Infinity を検出したため 0 に置き換えました"]);
+    }
+
+    function fallbackLimiter(input) {
+      var comp = ctx.createDynamicsCompressor();
+      comp.threshold.value = -1;
+      comp.ratio.value = 20;
+      comp.knee.value = 0;
+      comp.attack.value = 0;
+      comp.release.value = 0.1;
+      var clip = ctx.createWaveShaper();
+      clip.curve = new Float32Array([-1, 1]);
+      var analyser = ctx.createAnalyser();
+      analyser.fftSize = 2048;
+      input.connect(comp);
+      comp.connect(clip);
+      clip.connect(ctx.destination);
+      clip.connect(analyser);
+      var buf = new Float32Array(analyser.fftSize);
+      setInterval(function () {
+        analyser.getFloatTimeDomainData(buf);
+        var peak = 0;
+        for (var i = 0; i < buf.length; i++) {
+          var a = Math.abs(buf[i]);
+          if (a > peak) peak = a;
+        }
+        var red = typeof comp.reduction === "number" ? comp.reduction : comp.reduction && comp.reduction.value;
+        onLevel(peak, -(red || 0));
+      }, 100);
+    }
+
+    function setupAudio() {
+      try {
+        ctx = new AudioContext({ latencyHint: "interactive" });
+      } catch (e) {
+        ctx = null;
+        emit("warn", ["AudioContext を作れません: " + e]);
+        return Promise.resolve();
+      }
+      if (ctx.state !== "running") ctx.resume().catch(function () {});
+      ctx.addEventListener("statechange", renderStatus);
+      output = ctx.createGain();
+      if (!ctx.audioWorklet || typeof AudioWorkletNode !== "function" || cfg.forceFallback) {
+        fallbackLimiter(output);
+        return Promise.resolve();
+      }
+      var url = URL.createObjectURL(new Blob([limiterSource], { type: "text/javascript" }));
+      return ctx.audioWorklet.addModule(url).then(
+        function () {
+          var node = new AudioWorkletNode(ctx, cfg.limiterName, {
+            numberOfInputs: 1,
+            numberOfOutputs: 1,
+            outputChannelCount: [2],
+            channelCount: 2,
+            channelCountMode: "explicit",
+            channelInterpretation: "speakers",
+            processorOptions: { thresholdDb: -1, lookahead: 0.005, release: 0.1, reportInterval: 0.05 }
+          });
+          node.port.onmessage = function (e) {
+            var m = e.data || {};
+            if (m.type === "nan") warnNaN();
+            else if (m.type === "level") onLevel(m.peak, m.gr);
+          };
+          output.connect(node);
+          node.connect(ctx.destination);
+        },
+        function (err) {
+          emit("warn", ["[リミッター] AudioWorklet を使えないため DynamicsCompressor で代用します: " + err]);
+          fallbackLimiter(output);
+        }
+      );
+    }
+
+    /* --- run --- */
+
+    function decodeSource(b64) {
+      return new TextDecoder().decode(decodeBase64(b64));
+    }
+
+    function run() {
+      if (!data || !data.source || running) return;
+      running = true;
+      runBtn.classList.add("is-running");
+      stopBtn.disabled = false;
+      send({ type: "started" });
+      var source;
+      try {
+        source = decodeSource(data.source);
+      } catch (e) {
+        emit("error", ["コードを読めません: " + e]);
+        return;
+      }
+      setupAudio().then(function () {
+        renderStatus();
+        var script = document.createElement("script");
+        script.type = "module";
+        script.textContent = source + "\n//# sourceURL=" + cfg.sourceUrl + "\n";
+        document.body.appendChild(script);
+      });
+    }
+
+    runBtn.addEventListener("click", function () {
+      if (running) send({ type: "rerun" });
+      else run();
+    });
+    stopBtn.addEventListener("click", function () {
+      if (running) send({ type: "stop" });
+    });
+    resumeBtn.addEventListener("click", function () {
+      if (ctx) ctx.resume().then(renderStatus, function () {});
+    });
+    // Any click in the frame may unlock a context that autoplay rules kept suspended.
+    document.addEventListener("pointerdown", function () {
+      if (running && ctx && ctx.state === "suspended") ctx.resume().then(renderStatus, function () {});
+    });
+    setInterval(renderStatus, 250);
+
+    window.addEventListener("message", function (e) {
+      if (e.source !== parentWin) return;
+      var m = e.data;
+      if (!m || m.cvRunner !== 1 || m.type !== "init" || data) return;
+      data = m.data || {};
+      if (m.autorun) run();
+    });
+  }
+
+  // The srcdoc of a waiting iframe: Run / Stop and the status, styled like the panel.
+  function buildSrcdoc(theme, options) {
+    var vars = "";
+    Object.keys(theme).forEach(function (k) {
+      vars += "--" + k + ":" + cssValue(theme[k]) + ";";
+    });
+    var css =
+      ":root{" + vars + "color-scheme:normal}" +
+      "html,body{margin:0;height:100%;overflow:hidden;overscroll-behavior:none;background:var(--bg);color:var(--fg)}" +
+      "body{box-sizing:border-box;display:flex;align-items:center;gap:.5em;padding:0 var(--pad);" +
+      "font:var(--size)/1.2 var(--font-sans);-webkit-user-select:none;user-select:none;cursor:default}" +
+      "button{font:inherit;font-weight:700;margin:0;padding:.2em .75em;border:.1em solid var(--fg);border-radius:0;" +
+      "background:transparent;color:var(--fg);cursor:pointer;white-space:nowrap}" +
+      "button:focus{outline:none}button:focus-visible{outline:.1em solid var(--accent);outline-offset:.1em}" +
+      "#run{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}" +
+      "button:disabled{opacity:.35;cursor:default}" +
+      ".status{margin-left:auto;display:flex;align-items:center;gap:.8em;white-space:nowrap;font-size:.9em}" +
+      "#out{color:var(--accent);font-weight:700}#limit{color:var(--error);font-weight:700}" +
+      "#resume{font-size:.9em;border-color:var(--accent);color:var(--accent)}" +
+      "[hidden]{display:none!important}";
+    var body =
+      (options.runnable
+        ? '<button type="button" id="run">▶ Run</button><button type="button" id="stop" disabled>■ Stop</button>'
+        : "") +
+      '<span class="status"><button type="button" id="resume" hidden>クリックして音声を開始</button>' +
+      '<span id="out" hidden>● 出力中</span><span id="limit" hidden>リミッター作動中</span></span>';
+    var name = scriptName(options.name);
+    var cfg = {
+      name: name,
+      sourceUrl: sourceUrlFor(name),
+      keys: FORWARDED_KEYS,
+      limiterName: LIMITER_PROCESSOR,
+      forceFallback: !!options.forceFallback
+    };
+    var script = options.runnable
+      ? "(" + frameMain.toString() + ")(" + jsonForScript(cfg) + ", " + formatConsoleArgs.toString() + ", " +
+        jsonForScript(limiterModuleSource()) + ");"
+      : "";
+    var end = "<" + "/script>";
+    return (
+      '<!doctype html><html lang="ja"><head><meta charset="utf-8"><style>' + css + "<" + "/style></head><body>" +
+      body + (script ? "<script>" + script + end : "") + "</body></html>"
+    );
+  }
+
+  var internals = {
+    formatConsoleArgs: formatConsoleArgs,
+    createLimiterCore: createLimiterCore,
+    limiterModuleSource: limiterModuleSource,
+    buildSrcdoc: buildSrcdoc,
+    jsonForScript: jsonForScript,
+    scriptName: scriptName,
+    sourceUrlFor: sourceUrlFor
+  };
+
+  if (typeof document === "undefined") {
+    globalThis.__cvSlidesRunnerInternals = internals;
+    return;
+  }
+
+  /* ---------- Parent page ---------- */
+
+  function init() {
+    var viewer = window.cvSlidesViewer;
+    var deck = document.getElementById("deck");
+    if (!viewer || !deck || deck.hasAttribute("data-runner-ready")) return;
+    deck.setAttribute("data-runner-ready", "");
+
+    var runners = [];
+    var current = null; // the runner whose slide is current (and has an iframe)
+
+    viewer.slides.forEach(function (slide, index) {
+      if (!slide.classList.contains("slide--code")) return;
+      var root = slide.querySelector(".runner");
+      if (!root) return;
+      var r = {
+        index: index,
+        slide: slide,
+        root: root,
+        slot: root.querySelector(".runner__frame-slot"),
+        console: root.querySelector(".runner__console"),
+        runnable: root.getAttribute("data-runnable") !== "false",
+        data: undefined,
+        frame: null,
+        running: false,
+        queue: [],
+        flushPending: false
+      };
+      if (!r.slot || !r.console) return;
+      var clear = root.querySelector(".runner__clear");
+      if (clear) {
+        clear.addEventListener("click", function () {
+          clearConsole(r);
+        });
+      }
+      runners[index] = r;
+    });
+
+    deck.addEventListener("viewer:slidechange", function (e) {
+      activate(e.detail.index);
+    });
+    // Mode switches do not touch the iframe (5.2): nothing listens to viewer:modechange.
+    window.addEventListener("message", onMessage);
+    activate(viewer.index);
+
+    viewer.runner = {
+      stop: function () {
+        if (current) stop(current, true);
+      },
+      internals: internals
+    };
+
+    function activate(index) {
+      var next = runners[index] || null;
+      if (current && current !== next) {
+        destroy(current, current.running ? "■ 停止" : null);
+        current = null;
+      }
+      if (next && next !== current) {
+        current = next;
+        createFrame(next, false);
+      }
+    }
+
+    function payload(r) {
+      if (r.data === undefined) {
+        r.data = null;
+        var node = r.root.querySelector("script.runner__data");
+        try {
+          r.data = node ? JSON.parse(node.textContent) : null;
+        } catch (e) {
+          appendLine(r, "error", "実行データを読めません: " + e.message);
+        }
+      }
+      return r.data;
+    }
+
+    function theme(r) {
+      var cs = getComputedStyle(r.slot);
+      function v(name, fallback) {
+        return cs.getPropertyValue(name).trim() || (fallback ? cs.getPropertyValue(fallback).trim() : "");
+      }
+      return {
+        fg: v("--runner-fg") || cs.color,
+        bg: v("--runner-bg") || backgroundOf(r.slot),
+        accent: v("--runner-accent", "--color-accent") || "#e8590c",
+        "on-accent": v("--runner-on-accent") || "#ffffff",
+        muted: v("--runner-muted", "--color-muted") || "#707070",
+        error: v("--runner-error") || "#d1242f",
+        "font-sans": v("--font-sans") || "sans-serif",
+        "font-mono": v("--font-mono") || "monospace",
+        size: cs.fontSize || "28px",
+        pad: v("--runner-pad") || "0.6em"
+      };
+    }
+
+    function backgroundOf(node) {
+      for (var n = node; n && n.nodeType === 1; n = n.parentElement) {
+        var bg = getComputedStyle(n).backgroundColor;
+        if (bg && bg !== "transparent" && !/rgba\(.*,\s*0\)$/.test(bg)) return bg;
+        if (n === node.closest(".slide")) break;
+      }
+      return "#ffffff";
+    }
+
+    function createFrame(r, autorun) {
+      var data = payload(r);
+      var runnable = r.runnable && !!(data && data.source);
+      if (!runnable) return; // nothing to run: the slot stays empty (the design may label it)
+      var frame = document.createElement("iframe");
+      frame.className = "runner__frame";
+      frame.setAttribute("sandbox", SANDBOX);
+      frame.setAttribute("allow", "autoplay");
+      frame.setAttribute("title", "コードの実行(▶ Run / ■ Stop)");
+      frame.srcdoc = buildSrcdoc(theme(r), { runnable: true, name: data.name });
+      frame.addEventListener("load", function () {
+        if (r.frame !== frame || !frame.contentWindow) return;
+        frame.contentWindow.postMessage({ cvRunner: 1, type: "init", data: data, autorun: autorun }, "*");
+      });
+      r.frame = frame;
+      r.running = false;
+      r.slot.appendChild(frame);
+    }
+
+    function destroy(r, systemLine) {
+      if (r.frame) {
+        var frame = r.frame;
+        r.frame = null;
+        if (frame.parentNode) frame.parentNode.removeChild(frame);
+      }
+      if (systemLine) appendLine(r, "system", systemLine);
+      r.running = false;
+    }
+
+    function stop(r, recreate) {
+      destroy(r, r.running ? "■ 停止" : null);
+      if (recreate && r === current) createFrame(r, false);
+    }
+
+    function onMessage(e) {
+      var r = current;
+      if (!r || !r.frame || e.source !== r.frame.contentWindow) return;
+      var m = e.data;
+      if (!m || m.cvRunner !== 1) return;
+      switch (m.type) {
+        case "started":
+          clearConsole(r);
+          r.running = true;
+          appendLine(r, "system", "▶ 実行開始");
+          break;
+        case "stop":
+          stop(r, true);
+          break;
+        case "rerun":
+          destroy(r, null);
+          createFrame(r, true);
+          break;
+        case "console":
+          appendLine(r, m.level, String(m.text));
+          break;
+        case "key":
+          if (typeof viewer.handleKey === "function") viewer.handleKey(String(m.key), !!m.repeat);
+          break;
+      }
+    }
+
+    /* --- console (6.3) --- */
+
+    var LEVEL_CLASS = { log: 1, info: 1, warn: 1, error: 1, debug: 1, system: 1 };
+
+    function appendLine(r, level, text) {
+      r.queue.push({ level: LEVEL_CLASS[level] ? level : "log", text: text });
+      if (r.queue.length > MAX_LINES) r.queue.splice(0, r.queue.length - MAX_LINES);
+      if (!r.flushPending) {
+        r.flushPending = true;
+        (window.requestAnimationFrame || setTimeout)(function () {
+          flush(r);
+        });
+      }
+    }
+
+    function flush(r) {
+      r.flushPending = false;
+      if (!r.queue.length) return;
+      var box = r.console;
+      var stick = box.scrollHeight - box.scrollTop - box.clientHeight < 8;
+      var fragment = document.createDocumentFragment();
+      r.queue.forEach(function (item) {
+        var line = document.createElement("div");
+        line.className = "runner__line runner__line--" + item.level;
+        line.textContent = item.text;
+        fragment.appendChild(line);
+      });
+      r.queue = [];
+      box.appendChild(fragment);
+      while (box.childElementCount > MAX_LINES) box.removeChild(box.firstElementChild);
+      if (stick) box.scrollTop = box.scrollHeight;
+    }
+
+    function clearConsole(r) {
+      r.queue = [];
+      while (r.console.firstChild) r.console.removeChild(r.console.firstChild);
+    }
+  }
+
+  if (window.cvSlidesViewer) init();
+  else document.addEventListener("DOMContentLoaded", init);
+})();
+</script>
+</body>
+</html>
