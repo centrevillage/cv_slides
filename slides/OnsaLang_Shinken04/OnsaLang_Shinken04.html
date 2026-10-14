@@ -1241,7 +1241,7 @@ iframe.runner__frame {
 <section class="slide slide--title" data-index="0">
 <div class="slide__inner">
 <h1 class="title__main"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="200" height="200" style="display:block;margin:0 auto 24px"><path d="M118 48 V196 a82 82 0 0 0 164 0 V48" fill="none" stroke="#e8590c" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/><rect x="177" y="262" width="46" height="100" rx="23" fill="#e8590c"/></svg>LLMと人に優しい<br>DSPプログラム言語「Onsa」</h1>
-<p class="title__sub">音を書くための、新しい言語を作っています</p>
+<p class="title__sub">~おれの理想のプログラム言語編~</p>
 <div class="title__meta">
 <span class="title__author">centrevillage</span>
 <span class="title__event">Shinken #04</span> <span class="title__date">2026-10-14</span>
@@ -1255,20 +1255,21 @@ iframe.runner__frame {
 <ul>
 <li><strong>LLM が書きやすい言語とは？</strong>
 <ul>
-<li>「一つの意図に書き方は一つ」。読み方が分かれない文法</li>
-<li>エラーが<strong>局所的</strong>で、関数の中だけ見れば直せる</li>
+<li>読みの別れない一貫した文法</li>
+<li>同形同義・異義異形の原則、表現の一意性</li>
+<li>エラーが<strong>局所的</strong>で関数の中に閉じるので修正ループを高速に回せる</li>
 </ul>
 </li>
 <li><strong>今、新しい言語が必要だとしたら、どの領域？</strong>
 <ul>
 <li>汎用言語は飽和。LLM は既存の言語を十分に書ける</li>
-<li>まだ「決定版」がない、小さく閉じた領域</li>
+<li>LLMの事前知識にない新言語は不利</li>
 </ul>
 </li>
 <li><strong>DSP(音の信号処理)なら？</strong>
 <ul>
 <li>定番の FAUST は強力だが、記法が独特で LLM も人も読みづらい</li>
-<li>FAUST の代わりになる言語なら、作る価値がある</li>
+<li>FAUST の代わりになる言語なら、作る価値があるかも？</li>
 </ul>
 </li>
 </ul>
@@ -1308,17 +1309,16 @@ iframe.runner__frame {
 <div class="column" style="--col-ratio: 1">
 <h3>音叉</h3>
 <ul>
+<li>「これに合わせる」ための存在</li>
 <li>DSP 開発の<strong>ベース</strong>となるもの</li>
 <li>基準となる音程を鳴らす道具</li>
-<li>「これに合わせる」ための存在</li>
 </ul>
 </div>
 <div class="column" style="--col-ratio: 1">
 <h3>音鎖</h3>
 <ul>
 <li>音の流れを<strong>チェイン</strong>する</li>
-<li>データフロー形式で、音の処理をつないでいく</li>
-<li>音の連鎖</li>
+<li>データフロー形式で、音の処理をつないでいく(音の連鎖)</li>
 </ul>
 </div>
 </div>
@@ -1332,7 +1332,7 @@ iframe.runner__frame {
 <ul>
 <li>汎用言語の部分は <strong>Rust</strong> に似ている
 <ul>
-<li>関数・構造体・型注釈・所有権の考え方</li>
+<li>関数・構造体・型注釈・所有権の考え方 (ただしライフサイクル管理はない)</li>
 </ul>
 </li>
 <li>信号処理の部分は <strong>Lustre</strong> に似た同期データフロー
@@ -1341,7 +1341,7 @@ iframe.runner__frame {
 <li>状態は遅延(<code>prev~</code>)にしか現れず、結線の誤りはコンパイル時に落ちる</li>
 </ul>
 </li>
-<li>FAUST と違って、<strong>すべての信号に名前がある</strong></li>
+<li>FAUST と違って、<strong>すべての信号に名前があり、信号の更新レートが明確</strong></li>
 <li>LLM が読みやすい文法を目指した結果、<strong>人にも読みやすくなった</strong></li>
 </ul>
 <figure class="figure figure--code" data-lang="onsa">
@@ -1466,7 +1466,7 @@ iframe.runner__frame {
 </li>
 <li>設計をガッチリ固めて、<strong>作り直し中</strong>
 <ul>
-<li>仕様書(0.3 版)を先に書き、仕様の例をそのままテストにする</li>
+<li>仕様書を先に書き、仕様の例をそのままテストにする</li>
 <li>「決めていないことは実装しない」</li>
 </ul>
 </li>
@@ -1481,10 +1481,9 @@ iframe.runner__frame {
 </div>
 </div>
 </section>
-<section class="slide slide--title" data-index="9">
+<section class="slide slide--takahashi" data-index="9">
 <div class="slide__inner">
-<h1 class="title__main">質疑応答</h1>
-<p class="title__sub">ご質問・ご意見をお待ちしています</p>
+<p class="takahashi__text">質疑応答</p>
 </div>
 </section>
 </main>
