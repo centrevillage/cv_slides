@@ -278,7 +278,156 @@
     </div>
   </div>
 </section>
+<section class="slide slide--code" data-index="20">
+<div class="slide__inner">
+<h2 class="slide__heading">コンソール出力</h2>
+<p class="code__description">console.log / warn / error と例外をコンソール領域に表示する。</p>
+<div class="runner" data-runnable="true">
+<figure class="figure figure--code runner__code" data-lang="js">
+<figcaption class="figure__caption">console.js</figcaption>
+<pre class="shiki plain"><code><span class="line">console.log("hello", 42, true, null, undefined);</span>
+<span class="line">const obj = { name: "osc", freq: 440, tags: ["a", "b"], nested: { deep: { deeper: { deepest: 1 } } } };</span>
+<span class="line">obj.self = obj;</span>
+<span class="line">console.log(obj);</span>
+<span class="line">console.info(new Map([["a", 1]]), new Set([1, 2]), new Float32Array([0.5, 1]));</span>
+<span class="line">console.debug("debug line");</span>
+<span class="line">console.warn("音量に注意");</span>
+<span class="line">console.error(new TypeError("型が違います"));</span>
+<span class="line">let n = 0;</span>
+<span class="line">const id = setInterval(() =&gt; {</span>
+<span class="line">  console.log("tick", ++n);</span>
+<span class="line">  if (n === 3) {</span>
+<span class="line">    clearInterval(id);</span>
+<span class="line">    Promise.reject(new Error("処理されなかった reject"));</span>
+<span class="line">    setTimeout(() =&gt; { undefinedFunction(); }, 0);</span>
+<span class="line">  }</span>
+<span class="line">}, 100);</span></code></pre>
+</figure>
+<div class="runner__panel">
+<div class="runner__frame-slot"></div>
+<div class="runner__console-bar"><button type="button" class="runner__clear">Clear</button></div>
+<div class="runner__console" role="log" aria-live="polite"></div>
+</div>
+<script type="application/json" class="runner__data">{"source":"Y29uc29sZS5sb2coImhlbGxvIiwgNDIsIHRydWUsIG51bGwsIHVuZGVmaW5lZCk7CmNvbnN0IG9iaiA9IHsgbmFtZTogIm9zYyIsIGZyZXE6IDQ0MCwgdGFnczogWyJhIiwgImIiXSwgbmVzdGVkOiB7IGRlZXA6IHsgZGVlcGVyOiB7IGRlZXBlc3Q6IDEgfSB9IH0gfTsKb2JqLnNlbGYgPSBvYmo7CmNvbnNvbGUubG9nKG9iaik7CmNvbnNvbGUuaW5mbyhuZXcgTWFwKFtbImEiLCAxXV0pLCBuZXcgU2V0KFsxLCAyXSksIG5ldyBGbG9hdDMyQXJyYXkoWzAuNSwgMV0pKTsKY29uc29sZS5kZWJ1ZygiZGVidWcgbGluZSIpOwpjb25zb2xlLndhcm4oIumfs+mHj+OBq+azqOaEjyIpOwpjb25zb2xlLmVycm9yKG5ldyBUeXBlRXJyb3IoIuWei+OBjOmBleOBhOOBvuOBmSIpKTsKbGV0IG4gPSAwOwpjb25zdCBpZCA9IHNldEludGVydmFsKCgpID0+IHsKICBjb25zb2xlLmxvZygidGljayIsICsrbik7CiAgaWYgKG4gPT09IDMpIHsKICAgIGNsZWFySW50ZXJ2YWwoaWQpOwogICAgUHJvbWlzZS5yZWplY3QobmV3IEVycm9yKCLlh6bnkIbjgZXjgozjgarjgYvjgaPjgZ8gcmVqZWN0IikpOwogICAgc2V0VGltZW91dCgoKSA9PiB7IHVuZGVmaW5lZEZ1bmN0aW9uKCk7IH0sIDApOwogIH0KfSwgMTAwKTs=","assets":{}}</script>
+</div>
+</div>
+</section>
+<section class="slide slide--code" data-index="21">
+<div class="slide__inner">
+<h2 class="slide__heading">サイン波を鳴らす</h2>
+<div class="runner" data-runnable="true">
+<figure class="figure figure--code runner__code" data-lang="js">
+<figcaption class="figure__caption">sine.js</figcaption>
+<pre class="shiki plain"><code><span class="line">const ctx = slide.audioContext();</span>
+<span class="line">const osc = new OscillatorNode(ctx, { frequency: 440 });</span>
+<span class="line">const gain = new GainNode(ctx, { gain: 0.2 });</span>
+<span class="line">osc.connect(gain).connect(slide.audioOutput());</span>
+<span class="line">osc.start();</span>
+<span class="line">console.log("playing", osc.frequency.value, "Hz");</span></code></pre>
+</figure>
+<div class="runner__panel">
+<div class="runner__frame-slot"></div>
+<div class="runner__console-bar"><button type="button" class="runner__clear">Clear</button></div>
+<div class="runner__console" role="log" aria-live="polite"></div>
+</div>
+<script type="application/json" class="runner__data">{"source":"Y29uc3QgY3R4ID0gc2xpZGUuYXVkaW9Db250ZXh0KCk7CmNvbnN0IG9zYyA9IG5ldyBPc2NpbGxhdG9yTm9kZShjdHgsIHsgZnJlcXVlbmN5OiA0NDAgfSk7CmNvbnN0IGdhaW4gPSBuZXcgR2Fpbk5vZGUoY3R4LCB7IGdhaW46IDAuMiB9KTsKb3NjLmNvbm5lY3QoZ2FpbikuY29ubmVjdChzbGlkZS5hdWRpb091dHB1dCgpKTsKb3NjLnN0YXJ0KCk7CmNvbnNvbGUubG9nKCJwbGF5aW5nIiwgb3NjLmZyZXF1ZW5jeS52YWx1ZSwgIkh6Iik7","assets":{}}</script>
+</div>
+</div>
+</section>
+<section class="slide slide--code" data-index="22">
+<div class="slide__inner">
+<h2 class="slide__heading">Biquad フィルタ</h2>
+<p class="code__description">C++ のコードを表示して、同じ処理を AudioWorklet で鳴らす。</p>
+<div class="runner" data-runnable="true">
+<figure class="figure figure--code runner__code" data-lang="cpp">
+<figcaption class="figure__caption">biquad.cpp</figcaption>
+<pre class="shiki plain"><code><span class="line">float process(float x) {</span>
+<span class="line">  float y = b0*x + b1*x1 + b2*x2 - a1*y1 - a2*y2;</span>
+<span class="line">  x2 = x1; x1 = x; y2 = y1; y1 = y;</span>
+<span class="line">  return y;</span>
+<span class="line">}</span></code></pre>
+</figure>
+<div class="runner__panel">
+<div class="runner__frame-slot"></div>
+<div class="runner__console-bar"><button type="button" class="runner__clear">Clear</button></div>
+<div class="runner__console" role="log" aria-live="polite"></div>
+</div>
+<script type="application/json" class="runner__data">{"source":"Y29uc3QgY3R4ID0gc2xpZGUuYXVkaW9Db250ZXh0KCk7CmF3YWl0IGN0eC5hdWRpb1dvcmtsZXQuYWRkTW9kdWxlKHNsaWRlLmFzc2V0KCJ3b3JrbGV0L2JpcXVhZC5qcyIpLnVybCgpKTsKY29uc3Qgbm9kZSA9IG5ldyBBdWRpb1dvcmtsZXROb2RlKGN0eCwgImJpcXVhZC1kZW1vIik7CnNsaWRlLmNvbm5lY3RQb3J0KG5vZGUucG9ydCk7Cm5vZGUuY29ubmVjdChzbGlkZS5hdWRpb091dHB1dCgpKTs=","assets":{"worklet/biquad.js":{"type":"text/javascript","data":"Y2xhc3MgQmlxdWFkRGVtbyBleHRlbmRzIEF1ZGlvV29ya2xldFByb2Nlc3NvciB7CiAgY29uc3RydWN0b3IoKSB7CiAgICBzdXBlcigpOwogICAgY29uc3QgZiA9IDgwMCAvIHNhbXBsZVJhdGUsIHEgPSA0LCB3ID0gMiAqIE1hdGguUEkgKiBmLCBhID0gTWF0aC5zaW4odykgLyAoMiAqIHEpLCBjID0gTWF0aC5jb3Modyk7CiAgICBjb25zdCBhMCA9IDEgKyBhOwogICAgdGhpcy5iMCA9ICgxIC0gYykgLyAyIC8gYTA7IHRoaXMuYjEgPSAoMSAtIGMpIC8gYTA7IHRoaXMuYjIgPSB0aGlzLmIwOwogICAgdGhpcy5hMSA9IC0yICogYyAvIGEwOyB0aGlzLmEyID0gKDEgLSBhKSAvIGEwOwogICAgdGhpcy54MSA9IHRoaXMueDIgPSB0aGlzLnkxID0gdGhpcy55MiA9IDA7CiAgICB0aGlzLnBvcnQucG9zdE1lc3NhZ2UoeyB0eXBlOiAibG9nIiwgbGV2ZWw6ICJpbmZvIiwgYXJnczogWyJiaXF1YWQgc3RhcnRlZCIsIHsgc2FtcGxlUmF0ZSwgZjA6IDgwMCwgcSB9XSB9KTsKICB9CiAgcHJvY2VzcyhpbnB1dHMsIG91dHB1dHMpIHsKICAgIGNvbnN0IG91dCA9IG91dHB1dHNbMF1bMF07CiAgICBmb3IgKGxldCBpID0gMDsgaSA8IG91dC5sZW5ndGg7IGkrKykgewogICAgICBjb25zdCB4ID0gKE1hdGgucmFuZG9tKCkgKiAyIC0gMSkgKiAwLjM7CiAgICAgIGNvbnN0IHkgPSB0aGlzLmIwICogeCArIHRoaXMuYjEgKiB0aGlzLngxICsgdGhpcy5iMiAqIHRoaXMueDIgLSB0aGlzLmExICogdGhpcy55MSAtIHRoaXMuYTIgKiB0aGlzLnkyOwogICAgICB0aGlzLngyID0gdGhpcy54MTsgdGhpcy54MSA9IHg7IHRoaXMueTIgPSB0aGlzLnkxOyB0aGlzLnkxID0geTsKICAgICAgb3V0W2ldID0geTsKICAgIH0KICAgIHJldHVybiB0cnVlOwogIH0KfQpyZWdpc3RlclByb2Nlc3NvcigiYmlxdWFkLWRlbW8iLCBCaXF1YWREZW1vKTsK"}}}</script>
+</div>
+</div>
+</section>
+<section class="slide slide--code" data-index="23">
+<div class="slide__inner">
+<h2 class="slide__heading">WASM とアセット</h2>
+<div class="runner" data-runnable="true">
+<figure class="figure figure--code runner__code" data-lang="js">
+<figcaption class="figure__caption">wasm.js</figcaption>
+<pre class="shiki plain"><code><span class="line">const wasm = slide.asset("add.wasm");</span>
+<span class="line">const { instance } = await WebAssembly.instantiate(wasm.bytes());</span>
+<span class="line">console.log("2 + 3 =", instance.exports.add(2, 3));</span>
+<span class="line">console.log("bytes:", wasm.bytes().byteLength, "type:", wasm.type);</span>
+<span class="line">console.log("text:", slide.asset("data/hello.txt").text());</span>
+<span class="line">const res = await fetch(slide.asset("data/hello.txt").url());</span>
+<span class="line">console.log("url:", await res.text());</span>
+<span class="line">try { slide.asset("missing.bin"); } catch (e) { console.warn(e.message); }</span></code></pre>
+</figure>
+<div class="runner__panel">
+<div class="runner__frame-slot"></div>
+<div class="runner__console-bar"><button type="button" class="runner__clear">Clear</button></div>
+<div class="runner__console" role="log" aria-live="polite"></div>
+</div>
+<script type="application/json" class="runner__data">{"source":"Y29uc3Qgd2FzbSA9IHNsaWRlLmFzc2V0KCJhZGQud2FzbSIpOwpjb25zdCB7IGluc3RhbmNlIH0gPSBhd2FpdCBXZWJBc3NlbWJseS5pbnN0YW50aWF0ZSh3YXNtLmJ5dGVzKCkpOwpjb25zb2xlLmxvZygiMiArIDMgPSIsIGluc3RhbmNlLmV4cG9ydHMuYWRkKDIsIDMpKTsKY29uc29sZS5sb2coImJ5dGVzOiIsIHdhc20uYnl0ZXMoKS5ieXRlTGVuZ3RoLCAidHlwZToiLCB3YXNtLnR5cGUpOwpjb25zb2xlLmxvZygidGV4dDoiLCBzbGlkZS5hc3NldCgiZGF0YS9oZWxsby50eHQiKS50ZXh0KCkpOwpjb25zdCByZXMgPSBhd2FpdCBmZXRjaChzbGlkZS5hc3NldCgiZGF0YS9oZWxsby50eHQiKS51cmwoKSk7CmNvbnNvbGUubG9nKCJ1cmw6IiwgYXdhaXQgcmVzLnRleHQoKSk7CnRyeSB7IHNsaWRlLmFzc2V0KCJtaXNzaW5nLmJpbiIpOyB9IGNhdGNoIChlKSB7IGNvbnNvbGUud2FybihlLm1lc3NhZ2UpOyB9","assets":{"add.wasm":{"type":"application/wasm","data":"AGFzbQEAAAABBwFgAn9/AX8DAgEABwcBA2FkZAAACgkBBwAgACABags="},"data/hello.txt":{"type":"text/plain","data":"44GT44KT44Gr44Gh44GvLCBhc3NldA=="}}}</script>
+</div>
+</div>
+</section>
+<section class="slide slide--code slide--class-inverse" data-index="24">
+<div class="slide__inner">
+<h2 class="slide__heading">リミッターの確認</h2>
+<p class="code__description">+12 dB のサイン波と NaN を含む音を出す(出力は ±1.0 に収まる)。</p>
+<div class="runner" data-runnable="true">
+<figure class="figure figure--code runner__code" data-lang="js">
+<figcaption class="figure__caption">limiter.js</figcaption>
+<pre class="shiki plain"><code><span class="line">const ctx = slide.audioContext();</span>
+<span class="line">const osc = new OscillatorNode(ctx, { frequency: 220 });</span>
+<span class="line">osc.connect(new GainNode(ctx, { gain: 3.98 })).connect(slide.audioOutput());</span>
+<span class="line">osc.start();</span>
+<span class="line">const buf = new AudioBuffer({ length: 4800, sampleRate: ctx.sampleRate });</span>
+<span class="line">buf.getChannelData(0).fill(NaN, 0, 64);</span>
+<span class="line">const src = new AudioBufferSourceNode(ctx, { buffer: buf });</span>
+<span class="line">src.connect(slide.audioOutput());</span>
+<span class="line">src.start(ctx.currentTime + 0.5);</span></code></pre>
+</figure>
+<div class="runner__panel">
+<div class="runner__frame-slot"></div>
+<div class="runner__console-bar"><button type="button" class="runner__clear">Clear</button></div>
+<div class="runner__console" role="log" aria-live="polite"></div>
+</div>
+<script type="application/json" class="runner__data">{"source":"Y29uc3QgY3R4ID0gc2xpZGUuYXVkaW9Db250ZXh0KCk7CmNvbnN0IG9zYyA9IG5ldyBPc2NpbGxhdG9yTm9kZShjdHgsIHsgZnJlcXVlbmN5OiAyMjAgfSk7Cm9zYy5jb25uZWN0KG5ldyBHYWluTm9kZShjdHgsIHsgZ2FpbjogMy45OCB9KSkuY29ubmVjdChzbGlkZS5hdWRpb091dHB1dCgpKTsKb3NjLnN0YXJ0KCk7CmNvbnN0IGJ1ZiA9IG5ldyBBdWRpb0J1ZmZlcih7IGxlbmd0aDogNDgwMCwgc2FtcGxlUmF0ZTogY3R4LnNhbXBsZVJhdGUgfSk7CmJ1Zi5nZXRDaGFubmVsRGF0YSgwKS5maWxsKE5hTiwgMCwgNjQpOwpjb25zdCBzcmMgPSBuZXcgQXVkaW9CdWZmZXJTb3VyY2VOb2RlKGN0eCwgeyBidWZmZXI6IGJ1ZiB9KTsKc3JjLmNvbm5lY3Qoc2xpZGUuYXVkaW9PdXRwdXQoKSk7CnNyYy5zdGFydChjdHguY3VycmVudFRpbWUgKyAwLjUpOw==","assets":{}}</script>
+</div>
+</div>
+</section>
+<section class="slide slide--code" data-index="25">
+<div class="slide__inner">
+<h2 class="slide__heading">表示だけのコード</h2>
+<p class="code__description">実行ブロックがないので Run ボタンは出ない。</p>
+<div class="runner" data-runnable="false">
+<figure class="figure figure--code runner__code" data-lang="onsa">
+<figcaption class="figure__caption">voice.onsa</figcaption>
+<pre class="shiki plain"><code><span class="line">pub flow voice(f0: freq) -&gt; audio {</span>
+<span class="line">  saw~(f0) * adsr(0.01, 0.2, 0.6, 0.3)</span>
+<span class="line">}</span></code></pre>
+</figure>
+<div class="runner__panel">
+<div class="runner__frame-slot"></div>
+<div class="runner__console-bar"><button type="button" class="runner__clear">Clear</button></div>
+<div class="runner__console" role="log" aria-live="polite"></div>
+</div>
+<script type="application/json" class="runner__data">{"source":null,"assets":{}}</script>
+</div>
+</div>
+</section>
 </main>
 <script id="viewer-js" src="../viewer.js"></script>
+<script id="runner-js" src="../runner.js"></script>
 </body>
 </html>

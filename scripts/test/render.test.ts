@@ -6,7 +6,7 @@ const options: BuildOptions = {
   file: 't.md',
   baseName: 'my_deck',
   loadDesign: (id) => (id === 'default' ? { id, css: '.slide{}', classes: ['inverse'] } : null),
-  runtime: { css: '#deck{}', js: 'console.log(1)' },
+  runtime: { css: '#deck{}', js: 'console.log(1)', runner: 'console.log(2)' },
 };
 
 async function build(src: string, extra: Partial<BuildOptions> = {}) {
@@ -30,7 +30,10 @@ test('output skeleton follows the contract', async () => {
     html,
     /<main id="deck" class="deck design-default" data-design="default" data-page-number="true">\n<section/,
   );
-  assert.match(html, /<\/main>\n<script id="viewer-js">\nconsole\.log\(1\)\n<\/script>\n<\/body>\n<\/html>\n$/);
+  assert.match(
+    html,
+    /<\/main>\n<script id="viewer-js">\nconsole\.log\(1\)\n<\/script>\n<script id="runner-js">\nconsole\.log\(2\)\n<\/script>\n<\/body>\n<\/html>\n$/,
+  );
 });
 
 test('output is deterministic', async () => {
@@ -174,9 +177,14 @@ test('</script and </style are escaped when inlining', async () => {
   assert.equal(escapeInlineScript('a="</script>";b="</SCRIPT >"'), 'a="<\\/script>";b="<\\/SCRIPT >"');
   assert.equal(escapeInlineStyle('/* </style> </Style> */'), '/* <\\/style> <\\/Style> */');
   const { html } = await build('## a\n', {
-    runtime: { css: 'a::after{content:"</style>"}', js: 'const s = "</script><script>alert(1)";' },
+    runtime: {
+      css: 'a::after{content:"</style>"}',
+      js: 'const s = "</script><script>alert(1)";',
+      runner: 'const r = "</SCRIPT>";',
+    },
   });
-  assert.equal((html ?? '').match(/<\/script>/g)?.length, 1);
+  assert.equal((html ?? '').match(/<\/script>/gi)?.length, 2);
+  assert.match(html ?? '', /<script id="runner-js">\nconst r = "<\\\/SCRIPT>";\n<\/script>/);
   assert.equal((html ?? '').match(/<\/style>/g)?.length, 2);
   assert.match(html ?? '', /const s = "<\\\/script><script>alert\(1\)";/);
 });
@@ -189,9 +197,9 @@ test('an empty deck is an error', async () => {
 
 test('messages carry the deck page number (auto title page shifts by one)', async () => {
   const { reporter } = await build('---\ntitle: T\n---\n## a\n---\n<!-- page: code -->\n## b\n');
-  const m = reporter.messages.find((x) => /未実装/.test(x.text));
-  assert.ok(m);
-  assert.equal(reporter.format(m), 't.md:6: 警告: [スライド 3] 未実装のページ種別です(page: code)。コンテンツページとして表示します');
+  assert.equal(reporter.messages.length, 1);
+  const m = reporter.messages[0]!;
+  assert.equal(reporter.format(m), 't.md:6: 警告: [スライド 3] コードサンプルページにコードブロックがありません');
 });
 
 test('empty title does not create a title page', async () => {

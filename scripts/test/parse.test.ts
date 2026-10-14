@@ -231,15 +231,13 @@ test('H1 shorthand: only H1 lines make a takahashi page', () => {
   assert.equal(analyzeSlide(raw('<!-- page: content -->\n# a'), reporter).type, 'content');
 });
 
-test('code page type warns as not implemented; image page does not', () => {
+test('code and image page types are recognized without warnings', () => {
   const reporter = new Reporter('t.md');
   const slide = analyzeSlide(raw('<!-- page: code -->\n## x'), reporter);
   assert.equal(slide.type, 'code');
-  assert.equal(reporter.warningCount, 1);
-  assert.match(reporter.messages[0]?.text ?? '', /未実装/);
   const image = analyzeSlide(raw('<!-- page: image -->\n![a](b.png)'), reporter);
   assert.equal(image.type, 'image');
-  assert.equal(reporter.warningCount, 1);
+  assert.equal(reporter.messages.length, 0);
 });
 
 test('Reporter.format includes file:line and the page number', () => {

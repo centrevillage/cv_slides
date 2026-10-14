@@ -8,6 +8,7 @@
 
 | 版 | 日付 | 内容 |
 | --- | --- | --- |
+| v0.8 | 2026-10-14 | M3 の実装と技術検証の結果を反映。実行用 iframe は `allow-scripts` のみとし(`allow-same-origin` は `file://` で AudioWorklet を壊すため代替案から外す)、6.2・6.7・8.3 を更新 |
 | v0.7 | 2026-10-14 | Q52〜Q54 の回答を反映。Onsa の WASM 実行は当面対象外とし(4.11、6.5、10、12)、音声出力にリミッターを入れる仕様を追加(6.4、6.6) |
 | v0.6 | 2026-10-14 | Q01〜Q51 の決定を反映(Q22・Q38 以外は推奨案で決定)。仮置き・提案の表記を確定内容に改め、全面画像ページ(4.12)、数式の記法(4.6)、印刷・PDF(5.8)、ページ単位のデザイン変更(8.7)を追加 |
 | v0.5 | 2026-10-14 | Q38 の回答(コンソール出力・音声出力・WASM)を反映。4.11 に表示ブロック・実行ブロック・アセットの記法を追加し、6章に音声出力・WASM・実行コード用 API・技術検証項目を追加。7.6、8.3、12 章を更新 |
@@ -732,7 +733,8 @@ node.connect(slide.audioOutput());
 
 ### 6.2 実行と停止
 
-- 実行用 iframe は、コードサンプルページを表示したときに待機状態で作る(コードはまだ実行しない)。
+- 実行用 iframe は、コードサンプルページを表示したときに待機状態で作る(コードはまだ実行しない)。実行するコードがないページ(`data-runnable="false"`)では iframe を作らず、「実行するコードはありません」と表示する。
+- iframe の sandbox は `allow-scripts` だけとする(6.7 の検証結果)。
 - ▶ Run / ■ Stop ボタンは **iframe の中に置く**。ブラウザの自動再生の制限により、音声を開始するには、その iframe の中でのクリックが必要なため。見た目はパネルの一部として描画する。
 
 | 操作 | 動作 |
@@ -805,11 +807,11 @@ node.connect(slide.audioOutput());
 
 | # | 制約・確認すること | 問題が出た場合の対応 |
 | --- | --- | --- |
-| 1 | AudioWorklet は安全なコンテキスト(https、localhost、ブラウザによっては `file://`)でしか使えない。`file://` で開いた出力HTMLの、サンドボックス化した srcdoc iframe の中で AudioWorklet を使えるか | sandbox に `allow-same-origin` を加える(分離は弱まるが、作者自身のコードなので許容)。それでも使えないブラウザは、ローカルサーバ(`gen_slide.sh --serve` など)で開く運用にする |
-| 2 | iframe 内で作った Blob URL を `audioWorklet.addModule()` に渡せるか | 同上 |
+| 1 | AudioWorklet は安全なコンテキスト(https、localhost、ブラウザによっては `file://`)でしか使えない。`file://` で開いた出力HTMLの、サンドボックス化した srcdoc iframe の中で AudioWorklet を使えるか | **Chrome は可**(2026-10-14 検証)。使えないブラウザでは、リミッターは DynamicsCompressorNode による代替になり、AudioWorklet を使うデモは動かない。その場合はローカルサーバ(`gen_slide.sh --serve` など)で開く運用を検討する。`allow-same-origin` を加える案は、Chrome で `addModule()` が失敗するようになるため採らない |
+| 2 | iframe 内で作った Blob URL を `audioWorklet.addModule()` に渡せるか | **Chrome は `allow-scripts` のみで可**(`allow-same-origin` を加えると失敗する)。Safari / Firefox は実機で確認する |
 | 3 | SharedArrayBuffer は使えない。クロスオリジン分離に HTTP ヘッダー(COOP / COEP)が必要で、`file://` の単一HTMLでは設定できないため。メインスレッドと AudioWorklet の間は MessagePort で値を受け渡す | 仕様上の制約として扱う。Onsa の glue JS を SharedArrayBuffer なしで動く設計にするかは、onsalang 側で検討中【Q53】 |
-| 4 | 自動再生の制限: iframe 内のクリックで AudioContext を開始できるか(特に Safari) | Run の後に「クリックして音声を開始」の表示を出し、もう一度クリックしてもらう |
-| 5 | (WASM 対応時に検証。当面は対象外)AudioWorklet に WASM のバイト列を渡し、その中でインスタンス化できるか | メインスレッドでコンパイルした `WebAssembly.Module` を `port` で渡す |
+| 4 | 自動再生の制限: iframe 内のクリックで AudioContext を開始できるか(特に Safari)。Chrome は可 | Run の後に「クリックして音声を開始」の表示を出し、もう一度クリックしてもらう |
+| 5 | AudioWorklet に WASM のバイト列を渡し、その中でインスタンス化できるか。Chrome は可(iframe 内でも AudioWorklet 内でも動く)。Onsa の WASM 対応時に他のブラウザでも確認する | メインスレッドでコンパイルした `WebAssembly.Module` を `port` で渡す |
 
 ---
 
@@ -1017,12 +1019,16 @@ designs/<name>/
 <section class="slide slide--code" data-index="4">
   <div class="slide__inner">
     <h2 class="slide__heading">…</h2>
-    <div class="runner">
-      <figure class="figure figure--code runner__code">…</figure>
+    <p class="code__description">…</p>
+    <div class="runner" data-runnable="true">
+      <figure class="figure figure--code runner__code" data-lang="cpp">…</figure>
       <div class="runner__panel">
-        <iframe class="runner__frame" sandbox="allow-scripts" allow="autoplay"></iframe>  <!-- Run / Stop と出力中の表示 -->
-        <div class="runner__console"></div>
+        <div class="runner__frame-slot"></div>  <!-- 表示中だけ、ビューアが iframe(Run / Stop と出力中の表示)を入れる -->
+        <div class="runner__console-bar"><button type="button" class="runner__clear">Clear</button></div>
+        <div class="runner__console" role="log" aria-live="polite"></div>
       </div>
+      <!-- 実行コードとアセット。中身は Base64、`<` は \u003c にエスケープする -->
+      <script type="application/json" class="runner__data">{"source":"…","assets":{"worklet/biquad.js":{"type":"text/javascript","data":"…"}}}</script>
     </div>
   </div>
 </section>

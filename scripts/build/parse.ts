@@ -333,11 +333,5 @@ export function isH1Only(source: string): boolean {
 export function analyzeSlide(raw: RawSlide, reporter: Reporter): Slide {
   const { directive, source } = parseDirective(raw, reporter);
   const type: PageType = directive.page ?? (isH1Only(source) ? 'takahashi' : 'content');
-  if (type === 'code') {
-    reporter.warn(`未実装のページ種別です(page: ${type})。コンテンツページとして表示します`, {
-      line: raw.line,
-      slide: raw.index,
-    });
-  }
   return { ...raw, source, directive, type };
 }

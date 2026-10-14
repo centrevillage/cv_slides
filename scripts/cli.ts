@@ -44,7 +44,7 @@ function loadRuntime(): Runtime {
     if (!existsSync(file)) throw new CliError(`ビューアのファイルが見つかりません: ${rel(file)}`);
     return readText(file);
   };
-  return { css: read('viewer.css'), js: read('viewer.js') };
+  return { css: read('viewer.css'), js: read('viewer.js'), runner: read('runner.js') };
 }
 
 function loadDesign(id: string): Design | null {

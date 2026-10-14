@@ -15,7 +15,7 @@ const options: BuildOptions = {
   baseDir: '/deck',
   readFile: (p) => FILES[p] ?? null,
   loadDesign: (id) => (id === 'default' ? { id, css: '', classes: [], highlightTheme: 'github-light' } : null),
-  runtime: { css: '', js: '' },
+  runtime: { css: '', js: '', runner: '' },
 };
 
 async function build(src: string, extra: Partial<BuildOptions> = {}) {

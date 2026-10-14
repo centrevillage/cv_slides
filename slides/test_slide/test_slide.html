@@ -71,6 +71,17 @@ body {
   white-space: nowrap !important;
 }
 
+/* Code runner iframe (6.2): fills the slot the design sizes; created by runner.js. */
+iframe.runner__frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
 /* ---- Viewer root: navigation mode (list | main) ---- */
 
 .viewer {
@@ -870,6 +881,156 @@ body {
   white-space: nowrap;
 }
 
+/* ---- Code sample page (7.6): title, optional description, code 60% | panel 40%. The panel
+   is: iframe row (▶ Run / ■ Stop + status, drawn by runner.js with the --runner-* colors),
+   console bar with Clear, console. Code and console scroll on their own (wheel over them
+   scrolls instead of turning the page). ---- */
+
+.slide--code {
+  --runner-fg: var(--color-code-block-fg);
+  --runner-bg: var(--color-code-block-bg);
+  --runner-muted: var(--color-code-block-muted);
+  --runner-accent: var(--color-accent);
+  --runner-on-accent: #ffffff;
+  --runner-warn: #9a6700;
+  --runner-warn-bg: #fff8c5;
+  --runner-error: #cf222e;
+  --runner-error-bg: #ffebe9;
+  --runner-border: #d0d0d0;
+  --size-console: 24px;
+  --size-runner-controls: 26px;
+}
+
+.slide--code .slide__inner {
+  display: flex;
+  flex-direction: column;
+}
+
+.code__description {
+  flex: 0 0 auto;
+  margin: -8px 0 32px;
+  font-size: var(--size-body);
+  line-height: 1.5;
+}
+
+.runner {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  align-items: stretch;
+  gap: 32px;
+}
+
+.runner__code {
+  flex: 6 1 0%;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+}
+
+.runner__code > pre {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+.runner__panel {
+  flex: 4 1 0%;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--runner-bg);
+  color: var(--runner-fg);
+}
+
+/* Height of the iframe row; runner.js copies color and font size from here into the iframe. */
+.runner__frame-slot {
+  flex: 0 0 auto;
+  height: 80px;
+  font-family: var(--font-sans);
+  font-size: var(--size-runner-controls);
+  background: var(--runner-bg);
+  color: var(--runner-fg);
+}
+
+.runner[data-runnable="false"] .runner__frame-slot {
+  display: flex;
+  align-items: center;
+  padding: 0 0.6em;
+  box-sizing: border-box;
+  color: var(--runner-muted);
+}
+
+.slide--code .runner[data-runnable="false"] .runner__frame-slot::before {
+  content: "実行するコードはありません";
+}
+
+.runner__console-bar {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 8px 16px;
+  border-top: 2px solid var(--runner-border);
+  border-bottom: 2px solid var(--runner-border);
+}
+
+.runner__clear {
+  margin: 0;
+  padding: 2px 16px;
+  border: 2px solid var(--runner-muted);
+  border-radius: 0;
+  background: transparent;
+  color: var(--runner-fg);
+  font-family: var(--font-sans);
+  font-size: var(--size-caption);
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.runner__clear:hover {
+  border-color: var(--runner-fg);
+}
+
+.runner__console {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  padding: 12px 20px;
+  font-family: var(--font-mono);
+  font-size: var(--size-console);
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.runner__line {
+  margin: 0 -20px;
+  padding: 0 20px;
+}
+
+.runner__line--debug,
+.runner__line--system {
+  color: var(--runner-muted);
+}
+
+.runner__line--warn {
+  color: var(--runner-warn);
+  background: var(--runner-warn-bg);
+}
+
+.runner__line--error {
+  color: var(--runner-error);
+  background: var(--runner-error-bg);
+}
+
 /* ---- Full-screen image page (7.7): no .slide__inner, the image covers the whole canvas ---- */
 
 .slide--image {
@@ -1059,9 +1220,9 @@ body {
 <div class="slide__body">
 <figure class="figure figure--code figure--line-numbers" data-lang="cpp">
 <figcaption class="figure__caption">biquad.cpp</figcaption>
-<pre class="shiki github-light" style="background-color:#fff;color:#24292e"><code><span class="line"><span style="color:#D73A49">float</span><span style="color:#6F42C1"> Biquad</span><span style="color:#24292E">::</span><span style="color:#6F42C1">process</span><span style="color:#24292E">(float x) {</span></span>
-<span class="line"><span style="color:#6A737D">  // Direct Form I</span></span>
-<span class="line is-highlighted"><span style="color:#D73A49">  float</span><span style="color:#E36209"> y</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> b0</span><span style="color:#D73A49">*</span><span style="color:#24292E">x </span><span style="color:#D73A49">+</span><span style="color:#24292E"> b1</span><span style="color:#D73A49">*</span><span style="color:#24292E">x1 </span><span style="color:#D73A49">+</span><span style="color:#24292E"> b2</span><span style="color:#D73A49">*</span><span style="color:#24292E">x2 </span><span style="color:#D73A49">-</span><span style="color:#24292E"> a1</span><span style="color:#D73A49">*</span><span style="color:#24292E">y1 </span><span style="color:#D73A49">-</span><span style="color:#24292E"> a2</span><span style="color:#D73A49">*</span><span style="color:#24292E">y2;</span></span>
+<pre class="shiki github-light" style="background-color:#fff;color:#24292e"><code><span class="line"><span style="color:#D73A49">float</span><span style="color:#6F42C1"> Biquad</span><span style="color:#24292E">::</span><span style="color:#6F42C1">process</span><span style="color:#24292E">(</span><span style="color:#D73A49">float</span><span style="color:#E36209"> x</span><span style="color:#24292E">) {</span></span>
+<span class="line"><span style="color:#24292E">  // Direct Form I</span></span>
+<span class="line is-highlighted"><span style="color:#24292E">  float y </span><span style="color:#D73A49">=</span><span style="color:#24292E"> b0</span><span style="color:#D73A49">*</span><span style="color:#24292E">x </span><span style="color:#D73A49">+</span><span style="color:#24292E"> b1</span><span style="color:#D73A49">*</span><span style="color:#24292E">x1 </span><span style="color:#D73A49">+</span><span style="color:#24292E"> b2</span><span style="color:#D73A49">*</span><span style="color:#24292E">x2 </span><span style="color:#D73A49">-</span><span style="color:#24292E"> a1</span><span style="color:#D73A49">*</span><span style="color:#24292E">y1 </span><span style="color:#D73A49">-</span><span style="color:#24292E"> a2</span><span style="color:#D73A49">*</span><span style="color:#24292E">y2;</span></span>
 <span class="line"><span style="color:#24292E">  x2 </span><span style="color:#D73A49">=</span><span style="color:#24292E"> x1; x1 </span><span style="color:#D73A49">=</span><span style="color:#24292E"> x; y2 </span><span style="color:#D73A49">=</span><span style="color:#24292E"> y1; y1 </span><span style="color:#D73A49">=</span><span style="color:#24292E"> y;</span></span>
 <span class="line"><span style="color:#D73A49">  return</span><span style="color:#24292E"> y;</span></span>
 <span class="line"><span style="color:#24292E">}</span></span></code></pre>
@@ -1316,11 +1477,103 @@ body {
 </div>
 </div>
 </section>
-<section class="slide slide--image" data-index="23" data-fit="cover">
+<section class="slide slide--code" data-index="23">
+<div class="slide__inner">
+<h2 class="slide__heading">コンソール出力</h2>
+<p class="code__description">文字列・オブジェクト・警告を表示して、最後にわざと例外を投げる</p>
+<div class="runner" data-runnable="true">
+<figure class="figure figure--code figure--line-numbers runner__code" data-lang="javascript">
+<figcaption class="figure__caption">console.js</figcaption>
+<pre class="shiki github-light" style="background-color:#fff;color:#24292e"><code><span class="line"><span style="color:#24292E">console.</span><span style="color:#6F42C1">log</span><span style="color:#24292E">(</span><span style="color:#032F62">"こんにちは"</span><span style="color:#24292E">, </span><span style="color:#005CC5">42</span><span style="color:#24292E">, </span><span style="color:#005CC5">true</span><span style="color:#24292E">, </span><span style="color:#005CC5">null</span><span style="color:#24292E">);</span></span>
+<span class="line"><span style="color:#24292E">console.</span><span style="color:#6F42C1">info</span><span style="color:#24292E">(</span><span style="color:#032F62">"info: サンプルレート"</span><span style="color:#24292E">, </span><span style="color:#005CC5">48000</span><span style="color:#24292E">, </span><span style="color:#032F62">"Hz"</span><span style="color:#24292E">);</span></span>
+<span class="line"><span style="color:#24292E">console.</span><span style="color:#6F42C1">log</span><span style="color:#24292E">({ name: </span><span style="color:#032F62">"biquad"</span><span style="color:#24292E">, fc: </span><span style="color:#005CC5">1000</span><span style="color:#24292E">, q: </span><span style="color:#005CC5">0.707</span><span style="color:#24292E">, coeffs: [</span><span style="color:#005CC5">0.2</span><span style="color:#24292E">, </span><span style="color:#005CC5">0.4</span><span style="color:#24292E">, </span><span style="color:#005CC5">0.2</span><span style="color:#24292E">], nested: { a: { b: { c: { d: </span><span style="color:#005CC5">1</span><span style="color:#24292E"> } } } } });</span></span>
+<span class="line"><span style="color:#D73A49">const</span><span style="color:#005CC5"> node</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> { id: </span><span style="color:#005CC5">1</span><span style="color:#24292E"> };</span></span>
+<span class="line"><span style="color:#24292E">node.self </span><span style="color:#D73A49">=</span><span style="color:#24292E"> node; </span><span style="color:#6A737D">// circular reference</span></span>
+<span class="line"><span style="color:#24292E">console.</span><span style="color:#6F42C1">log</span><span style="color:#24292E">(node);</span></span>
+<span class="line"><span style="color:#24292E">console.</span><span style="color:#6F42C1">warn</span><span style="color:#24292E">(</span><span style="color:#032F62">"警告: ゲインが大きすぎます"</span><span style="color:#24292E">);</span></span>
+<span class="line"><span style="color:#24292E">console.</span><span style="color:#6F42C1">debug</span><span style="color:#24292E">(</span><span style="color:#032F62">"debug message"</span><span style="color:#24292E">);</span></span>
+<span class="line is-highlighted"><span style="color:#D73A49">throw</span><span style="color:#D73A49"> new</span><span style="color:#6F42C1"> Error</span><span style="color:#24292E">(</span><span style="color:#032F62">"最後にわざと例外を投げる"</span><span style="color:#24292E">);</span></span></code></pre>
+</figure>
+<div class="runner__panel">
+<div class="runner__frame-slot"></div>
+<div class="runner__console-bar"><button type="button" class="runner__clear">Clear</button></div>
+<div class="runner__console" role="log" aria-live="polite"></div>
+</div>
+<script type="application/json" class="runner__data">{"source":"Y29uc29sZS5sb2coIuOBk+OCk+OBq+OBoeOBryIsIDQyLCB0cnVlLCBudWxsKTsKY29uc29sZS5pbmZvKCJpbmZvOiDjgrXjg7Pjg5fjg6vjg6zjg7zjg4giLCA0ODAwMCwgIkh6Iik7CmNvbnNvbGUubG9nKHsgbmFtZTogImJpcXVhZCIsIGZjOiAxMDAwLCBxOiAwLjcwNywgY29lZmZzOiBbMC4yLCAwLjQsIDAuMl0sIG5lc3RlZDogeyBhOiB7IGI6IHsgYzogeyBkOiAxIH0gfSB9IH0gfSk7CmNvbnN0IG5vZGUgPSB7IGlkOiAxIH07Cm5vZGUuc2VsZiA9IG5vZGU7IC8vIGNpcmN1bGFyIHJlZmVyZW5jZQpjb25zb2xlLmxvZyhub2RlKTsKY29uc29sZS53YXJuKCLorablkYo6IOOCsuOCpOODs+OBjOWkp+OBjeOBmeOBjuOBvuOBmSIpOwpjb25zb2xlLmRlYnVnKCJkZWJ1ZyBtZXNzYWdlIik7CnRocm93IG5ldyBFcnJvcigi5pyA5b6M44Gr44KP44GW44Go5L6L5aSW44KS5oqV44GS44KLIik7Cg==","assets":{}}</script>
+</div>
+</div>
+</section>
+<section class="slide slide--code" data-index="24">
+<div class="slide__inner">
+<h2 class="slide__heading">サイン波を鳴らす</h2>
+<div class="runner" data-runnable="true">
+<figure class="figure figure--code runner__code" data-lang="javascript">
+<figcaption class="figure__caption">sine.js</figcaption>
+<pre class="shiki github-light" style="background-color:#fff;color:#24292e"><code><span class="line"><span style="color:#D73A49">const</span><span style="color:#005CC5"> ctx</span><span style="color:#D73A49"> =</span><span style="color:#24292E"> slide.</span><span style="color:#6F42C1">audioContext</span><span style="color:#24292E">();</span></span>
+<span class="line"><span style="color:#D73A49">const</span><span style="color:#005CC5"> osc</span><span style="color:#D73A49"> =</span><span style="color:#D73A49"> new</span><span style="color:#6F42C1"> OscillatorNode</span><span style="color:#24292E">(ctx, { frequency: </span><span style="color:#005CC5">440</span><span style="color:#24292E"> });</span></span>
+<span class="line"><span style="color:#D73A49">const</span><span style="color:#005CC5"> gain</span><span style="color:#D73A49"> =</span><span style="color:#D73A49"> new</span><span style="color:#6F42C1"> GainNode</span><span style="color:#24292E">(ctx, { gain: </span><span style="color:#005CC5">0.2</span><span style="color:#24292E"> });</span></span>
+<span class="line"><span style="color:#24292E">osc.</span><span style="color:#6F42C1">connect</span><span style="color:#24292E">(gain).</span><span style="color:#6F42C1">connect</span><span style="color:#24292E">(slide.</span><span style="color:#6F42C1">audioOutput</span><span style="color:#24292E">());</span></span>
+<span class="line"><span style="color:#24292E">osc.</span><span style="color:#6F42C1">start</span><span style="color:#24292E">();</span></span>
+<span class="line"><span style="color:#24292E">console.</span><span style="color:#6F42C1">log</span><span style="color:#24292E">(</span><span style="color:#032F62">"playing 440 Hz"</span><span style="color:#24292E">);</span></span>
+<span class="line"><span style="color:#6F42C1">setTimeout</span><span style="color:#24292E">(() </span><span style="color:#D73A49">=></span><span style="color:#24292E"> console.</span><span style="color:#6F42C1">log</span><span style="color:#24292E">(</span><span style="color:#032F62">"1 秒経過"</span><span style="color:#24292E">), </span><span style="color:#005CC5">1000</span><span style="color:#24292E">);</span></span></code></pre>
+</figure>
+<div class="runner__panel">
+<div class="runner__frame-slot"></div>
+<div class="runner__console-bar"><button type="button" class="runner__clear">Clear</button></div>
+<div class="runner__console" role="log" aria-live="polite"></div>
+</div>
+<script type="application/json" class="runner__data">{"source":"Y29uc3QgY3R4ID0gc2xpZGUuYXVkaW9Db250ZXh0KCk7CmNvbnN0IG9zYyA9IG5ldyBPc2NpbGxhdG9yTm9kZShjdHgsIHsgZnJlcXVlbmN5OiA0NDAgfSk7CmNvbnN0IGdhaW4gPSBuZXcgR2Fpbk5vZGUoY3R4LCB7IGdhaW46IDAuMiB9KTsKb3NjLmNvbm5lY3QoZ2FpbikuY29ubmVjdChzbGlkZS5hdWRpb091dHB1dCgpKTsKb3NjLnN0YXJ0KCk7CmNvbnNvbGUubG9nKCJwbGF5aW5nIDQ0MCBIeiIpOwpzZXRUaW1lb3V0KCgpID0+IGNvbnNvbGUubG9nKCIxIOenkue1jOmBjiIpLCAxMDAwKTsK","assets":{}}</script>
+</div>
+</div>
+</section>
+<section class="slide slide--code" data-index="25">
+<div class="slide__inner">
+<h2 class="slide__heading">Biquad フィルタ</h2>
+<p class="code__description">C++ のコードを表示して、同じ処理を AudioWorklet で鳴らす(ホワイトノイズ → ローパス 800 Hz)</p>
+<div class="runner" data-runnable="true">
+<figure class="figure figure--code figure--line-numbers runner__code" data-lang="cpp">
+<figcaption class="figure__caption">biquad.cpp</figcaption>
+<pre class="shiki github-light" style="background-color:#fff;color:#24292e"><code><span class="line"><span style="color:#D73A49">float</span><span style="color:#6F42C1"> process</span><span style="color:#24292E">(</span><span style="color:#D73A49">float</span><span style="color:#E36209"> x</span><span style="color:#24292E">) {</span></span>
+<span class="line is-highlighted"><span style="color:#D73A49">  float</span><span style="color:#24292E"> y </span><span style="color:#D73A49">=</span><span style="color:#24292E"> b0</span><span style="color:#D73A49">*</span><span style="color:#24292E">x </span><span style="color:#D73A49">+</span><span style="color:#24292E"> b1</span><span style="color:#D73A49">*</span><span style="color:#24292E">x1 </span><span style="color:#D73A49">+</span><span style="color:#24292E"> b2</span><span style="color:#D73A49">*</span><span style="color:#24292E">x2 </span><span style="color:#D73A49">-</span><span style="color:#24292E"> a1</span><span style="color:#D73A49">*</span><span style="color:#24292E">y1 </span><span style="color:#D73A49">-</span><span style="color:#24292E"> a2</span><span style="color:#D73A49">*</span><span style="color:#24292E">y2;</span></span>
+<span class="line"><span style="color:#24292E">  x2 </span><span style="color:#D73A49">=</span><span style="color:#24292E"> x1; x1 </span><span style="color:#D73A49">=</span><span style="color:#24292E"> x;</span></span>
+<span class="line"><span style="color:#24292E">  y2 </span><span style="color:#D73A49">=</span><span style="color:#24292E"> y1; y1 </span><span style="color:#D73A49">=</span><span style="color:#24292E"> y;</span></span>
+<span class="line"><span style="color:#D73A49">  return</span><span style="color:#24292E"> y;</span></span>
+<span class="line"><span style="color:#24292E">}</span></span></code></pre>
+</figure>
+<div class="runner__panel">
+<div class="runner__frame-slot"></div>
+<div class="runner__console-bar"><button type="button" class="runner__clear">Clear</button></div>
+<div class="runner__console" role="log" aria-live="polite"></div>
+</div>
+<script type="application/json" class="runner__data">{"source":"Y29uc3QgY3R4ID0gc2xpZGUuYXVkaW9Db250ZXh0KCk7CmF3YWl0IGN0eC5hdWRpb1dvcmtsZXQuYWRkTW9kdWxlKHNsaWRlLmFzc2V0KCJ3b3JrbGV0L2JpcXVhZC5qcyIpLnVybCgpKTsKY29uc3Qgbm9kZSA9IG5ldyBBdWRpb1dvcmtsZXROb2RlKGN0eCwgImJpcXVhZC1kZW1vIiwgewogIHByb2Nlc3Nvck9wdGlvbnM6IHsgY3V0b2ZmOiA4MDAsIHE6IE1hdGguU1FSVDFfMiwgZ2FpbjogMC4zIH0sCn0pOwpzbGlkZS5jb25uZWN0UG9ydChub2RlLnBvcnQpOwpub2RlLmNvbm5lY3Qoc2xpZGUuYXVkaW9PdXRwdXQoKSk7CmNvbnNvbGUubG9nKCJ3aGl0ZSBub2lzZSAtPiBsb3dwYXNzIDgwMCBIeiIpOwo=","assets":{"worklet/biquad.js":{"type":"text/javascript","data":"Ly8gQXVkaW9Xb3JrbGV0IGZvciB0aGUgY29kZSBwYWdlIGRlbW86IHdoaXRlIG5vaXNlIHRocm91Z2ggYSBsb3dwYXNzIGJpcXVhZAovLyAoY29lZmZpY2llbnRzIGZyb20gdGhlIEF1ZGlvIEVRIENvb2tib29rKS4gT3B0aW9uczogcHJvY2Vzc29yT3B0aW9ucyB7IGN1dG9mZiwgcSwgZ2FpbiB9LgpjbGFzcyBCaXF1YWREZW1vIGV4dGVuZHMgQXVkaW9Xb3JrbGV0UHJvY2Vzc29yIHsKICBjb25zdHJ1Y3RvcihvcHRpb25zKSB7CiAgICBzdXBlcigpOwogICAgY29uc3QgeyBjdXRvZmYgPSA4MDAsIHEgPSBNYXRoLlNRUlQxXzIsIGdhaW4gPSAwLjMgfSA9IG9wdGlvbnM/LnByb2Nlc3Nvck9wdGlvbnMgPz8ge307CiAgICBjb25zdCB3MCA9ICgyICogTWF0aC5QSSAqIGN1dG9mZikgLyBzYW1wbGVSYXRlOwogICAgY29uc3QgY29zID0gTWF0aC5jb3ModzApOwogICAgY29uc3QgYWxwaGEgPSBNYXRoLnNpbih3MCkgLyAoMiAqIHEpOwogICAgY29uc3QgYTAgPSAxICsgYWxwaGE7CiAgICB0aGlzLmIwID0gKDEgLSBjb3MpIC8gMiAvIGEwOwogICAgdGhpcy5iMSA9ICgxIC0gY29zKSAvIGEwOwogICAgdGhpcy5iMiA9IHRoaXMuYjA7CiAgICB0aGlzLmExID0gKC0yICogY29zKSAvIGEwOwogICAgdGhpcy5hMiA9ICgxIC0gYWxwaGEpIC8gYTA7CiAgICB0aGlzLngxID0gMDsKICAgIHRoaXMueDIgPSAwOwogICAgdGhpcy55MSA9IDA7CiAgICB0aGlzLnkyID0gMDsKICAgIHRoaXMuZ2FpbiA9IGdhaW47CiAgICB0aGlzLnN0YXJ0ZWQgPSBmYWxzZTsKICB9CgogIHByb2Nlc3MoX2lucHV0cywgb3V0cHV0cykgewogICAgY29uc3Qgb3V0ID0gb3V0cHV0c1swXTsKICAgIGNvbnN0IGZpcnN0ID0gb3V0Py5bMF07CiAgICBpZiAoIWZpcnN0KSByZXR1cm4gdHJ1ZTsKICAgIGlmICghdGhpcy5zdGFydGVkKSB7CiAgICAgIHRoaXMuc3RhcnRlZCA9IHRydWU7CiAgICAgIC8vIGNvbnNvbGUubG9nIGNhbm5vdCBiZSBob29rZWQgaW5zaWRlIGFuIEF1ZGlvV29ya2xldDogc2VuZCBsb2dzIHRocm91Z2ggdGhlIHBvcnQgaW5zdGVhZC4KICAgICAgdGhpcy5wb3J0LnBvc3RNZXNzYWdlKHsgdHlwZTogImxvZyIsIGxldmVsOiAibG9nIiwgYXJnczogWyJiaXF1YWQgcnVubmluZyJdIH0pOwogICAgfQogICAgZm9yIChsZXQgaSA9IDA7IGkgPCBmaXJzdC5sZW5ndGg7IGkrKykgewogICAgICBjb25zdCB4ID0gKE1hdGgucmFuZG9tKCkgKiAyIC0gMSkgKiB0aGlzLmdhaW47CiAgICAgIGNvbnN0IHkgPSB0aGlzLmIwICogeCArIHRoaXMuYjEgKiB0aGlzLngxICsgdGhpcy5iMiAqIHRoaXMueDIgLSB0aGlzLmExICogdGhpcy55MSAtIHRoaXMuYTIgKiB0aGlzLnkyOwogICAgICB0aGlzLngyID0gdGhpcy54MTsKICAgICAgdGhpcy54MSA9IHg7CiAgICAgIHRoaXMueTIgPSB0aGlzLnkxOwogICAgICB0aGlzLnkxID0geTsKICAgICAgZmlyc3RbaV0gPSB5OwogICAgfQogICAgZm9yIChsZXQgY2ggPSAxOyBjaCA8IG91dC5sZW5ndGg7IGNoKyspIG91dFtjaF0uc2V0KGZpcnN0KTsKICAgIHJldHVybiB0cnVlOwogIH0KfQoKcmVnaXN0ZXJQcm9jZXNzb3IoImJpcXVhZC1kZW1vIiwgQmlxdWFkRGVtbyk7Cg=="}}}</script>
+</div>
+</div>
+</section>
+<section class="slide slide--code" data-index="26">
+<div class="slide__inner">
+<h2 class="slide__heading">WASM を呼ぶ</h2>
+<p class="code__description"><code>add(i32, i32) -&gt; i32</code> だけを持つ WASM をアセットとして埋め込んで呼び出す</p>
+<div class="runner" data-runnable="true">
+<figure class="figure figure--code runner__code" data-lang="javascript">
+<figcaption class="figure__caption">wasm.js</figcaption>
+<pre class="shiki github-light" style="background-color:#fff;color:#24292e"><code><span class="line"><span style="color:#D73A49">const</span><span style="color:#005CC5"> bytes</span><span style="color:#D73A49"> =</span><span style="color:#D73A49"> await</span><span style="color:#24292E"> slide.</span><span style="color:#6F42C1">asset</span><span style="color:#24292E">(</span><span style="color:#032F62">"wasm/add.wasm"</span><span style="color:#24292E">).</span><span style="color:#6F42C1">bytes</span><span style="color:#24292E">();</span></span>
+<span class="line"><span style="color:#D73A49">const</span><span style="color:#24292E"> { </span><span style="color:#005CC5">instance</span><span style="color:#24292E"> } </span><span style="color:#D73A49">=</span><span style="color:#D73A49"> await</span><span style="color:#24292E"> WebAssembly.</span><span style="color:#6F42C1">instantiate</span><span style="color:#24292E">(bytes);</span></span>
+<span class="line"><span style="color:#24292E">console.</span><span style="color:#6F42C1">log</span><span style="color:#24292E">(</span><span style="color:#032F62">"add(2, 3) ="</span><span style="color:#24292E">, instance.exports.</span><span style="color:#6F42C1">add</span><span style="color:#24292E">(</span><span style="color:#005CC5">2</span><span style="color:#24292E">, </span><span style="color:#005CC5">3</span><span style="color:#24292E">));</span></span></code></pre>
+</figure>
+<div class="runner__panel">
+<div class="runner__frame-slot"></div>
+<div class="runner__console-bar"><button type="button" class="runner__clear">Clear</button></div>
+<div class="runner__console" role="log" aria-live="polite"></div>
+</div>
+<script type="application/json" class="runner__data">{"source":"Y29uc3QgYnl0ZXMgPSBhd2FpdCBzbGlkZS5hc3NldCgid2FzbS9hZGQud2FzbSIpLmJ5dGVzKCk7CmNvbnN0IHsgaW5zdGFuY2UgfSA9IGF3YWl0IFdlYkFzc2VtYmx5Lmluc3RhbnRpYXRlKGJ5dGVzKTsKY29uc29sZS5sb2coImFkZCgyLCAzKSA9IiwgaW5zdGFuY2UuZXhwb3J0cy5hZGQoMiwgMykpOwo=","assets":{"wasm/add.wasm":{"type":"application/wasm","data":"AGFzbQEAAAABBwFgAn9/AX8DAgEABwcBA2FkZAAACgkBBwAgACABags="}}}</script>
+</div>
+</div>
+</section>
+<section class="slide slide--image" data-index="27" data-fit="cover">
 <img class="image__img" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAAC0CAIAAABqhmJGAAAD/klEQVR42u3XwW0TURSF4VfOVEIHdMCaItjQRtrIhiJoKEhRhBAJ2B7P+L177oe+JTiee/wnYWzbT6Co4QQgYEDAgIBBwICAAQEDAgYBAwIGBAwCBgQMCBgQMAgYEDAgYEDAIGBAwICAQcCAgAEBAwIGAQMCBgQMvAb8aXsGihIwCBgQMCBgEDAgYEDAgIBBwICAAQGDgAEBAwIGBAwCBgQMCLiQl0t/nMi+Aq63q5LtK+CcdTVsXwEXnlbG9hVwwroatq+A15321r+MfQU8c92z/zn2FfDx6859KbrtK+DnFSbRsH0FPHPdxV+Z1H0FvFZjGravgB+3bvUvRPV9x5ftiWu8P3rSl6PovgLeefHIr2jfcvsKeOmWNGxfAdeuSMP2FXDtfjRsXwHXLkfD9hXwXWf1Zuy74JsRcJkfen4I21fAtWvRsH0FXLsTDdtXwLX/tylg+wq4dh4atq+AC/+C6hdp+wq49k82AdtXwLWT0LB9BVw7Bg0331fAAravgK3rzTvRjDcv4IQANNx2XwEL2L4Ctq4HcZYZDzKsG/Oh13DDfQUsYPsK2LoeyilmPNSwrkezb91HE7CA7Stg63pAjz/jAVsH7ENs3+rPOLoN3OST3TbgbvuOVhu3+lg3bLjhvm8Bf9u+d/B7Xc/reTOed/R55j+/PXf7QNs3P+Dsx264bqsHb7vvaPKLR891+zy7gJMfvu26TR6/874j/gTN67WvgA3sCB5t7YBTD6Fe+3YJOO8c1s0+iH0FLGCPExRw0lGsm30W+34ccMZprJt9HPsKWMD2DQ24+oGsm30i+14OuO6ZrJt9KPsKGPs2CLjisaybfS773hZwrZNZN/to9r034JUPV+V9upt9Hxpwle981s0+nX33B7z++aybfUD7Hhnwakf0y1X2De17QMDL3tG62Ze072EBL3hN62bf074HB7za/0asm31S+54b8Nyz+vacfVX7nhLwIpe1bvZt7XtiwNPva93sC9v39IAnXtm62Xe274MCnnJr62Y3bN89AT9tX/d5efdn90st+OWwbwmjxNGtm92wfecE/OHpj73+2a+PfVsHfOoG1s1u2L5LBPyvJe4Z4/AXxL4CftAk1s1u2L4rBvyfYa6c585/zqyG7RsS8MWR/hrspr/M+g3bt3zAt85s2uyM7Vsy4KM2Nk92w864bsB3zmyY7IydrkbA+za2SnbDjlYp4OuXNkZ2yU5UO2BAwICAQcCAgAEBg4ABAQMCBgQMAgYEDAgYEDAIGBAwIGDoFPCP7TNQlIBBwICAAQGDgAEBAwIGBAwCBgQMCBgEDAgYEDAgYBAwIGBAwICAQcCAgAEBg4ABAQMCBgQMAgYEDAgYePULL1pwLXK+RKYAAAAASUVORK5CYII=" alt="全面画像のサンプル">
 <p class="image__caption">2026.08 下北沢(fit: cover)</p>
 </section>
-<section class="slide slide--image" data-index="24" data-fit="contain">
+<section class="slide slide--image" data-index="28" data-fit="contain">
 <img class="image__img" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0MDAgMTIwIiB3aWR0aD0iNDAwIiBoZWlnaHQ9IjEyMCIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTYiPgogIDxyZWN0IHg9IjEwIiB5PSI0MCIgd2lkdGg9IjkwIiBoZWlnaHQ9IjQwIiByeD0iNiIgZmlsbD0iI2Y1ZjVmNSIgc3Ryb2tlPSIjMWYxZjFmIi8+CiAgPHRleHQgeD0iNTUiIHk9IjY1IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5PU0M8L3RleHQ+CiAgPHJlY3QgeD0iMTU1IiB5PSI0MCIgd2lkdGg9IjkwIiBoZWlnaHQ9IjQwIiByeD0iNiIgZmlsbD0iI2Y1ZjVmNSIgc3Ryb2tlPSIjMWYxZjFmIi8+CiAgPHRleHQgeD0iMjAwIiB5PSI2NSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+QmlxdWFkPC90ZXh0PgogIDxyZWN0IHg9IjMwMCIgeT0iNDAiIHdpZHRoPSI5MCIgaGVpZ2h0PSI0MCIgcng9IjYiIGZpbGw9IiNmNWY1ZjUiIHN0cm9rZT0iIzFmMWYxZiIvPgogIDx0ZXh0IHg9IjM0NSIgeT0iNjUiIHRleHQtYW5jaG9yPSJtaWRkbGUiPk91dDwvdGV4dD4KICA8cGF0aCBkPSJNMTAwIDYwIEgxNTAgTTI0NSA2MCBIMjk1IiBzdHJva2U9IiNlODU5MGMiIHN0cm9rZS13aWR0aD0iMyIvPgogIDxwYXRoIGQ9Ik0xNTAgNjAgbC04IC01IHYxMCB6IE0yOTUgNjAgbC04IC01IHYxMCB6IiBmaWxsPSIjZTg1OTBjIi8+Cjwvc3ZnPgo=" alt="全面画像のサンプル">
 <p class="image__caption">全面画像ページ(fit: contain)</p>
 </section>
@@ -1703,6 +1956,10 @@ body {
       prev: prev,
       enterPresentation: enterPresentation,
       exitPresentation: exitPresentation,
+      // Handles a key exactly like a keydown on the page (used by the code runner, 6.2).
+      handleKey: function (key, repeat) {
+        return applyKey(String(key), !!repeat);
+      },
       slides: slides,
       internals: internals,
       get index() {
@@ -2068,9 +2325,14 @@ body {
     function onKeyDown(e) {
       if (e.defaultPrevented || e.isComposing || e.altKey || e.ctrlKey || e.metaKey) return;
       if (isEditable(e.target)) return;
-      var action = keyAction(state.mode, e.key);
-      if (!action) return;
-      e.preventDefault();
+      if (applyKey(e.key, e.repeat)) e.preventDefault();
+    }
+
+    // Shared by keydown and keys forwarded from code runner iframes (6.2). Returns true when
+    // the key was handled.
+    function applyKey(key, repeat) {
+      var action = keyAction(state.mode, key);
+      if (!action) return false;
       switch (action) {
         case "next":
           next();
@@ -2085,12 +2347,13 @@ body {
           go(count - 1);
           break;
         case "present":
-          if (!e.repeat) enterPresentation();
+          if (!repeat) enterPresentation();
           break;
         case "nav":
-          if (!e.repeat) exitPresentation();
+          if (!repeat) exitPresentation();
           break;
       }
+      return true;
     }
 
     function onFullscreenChange() {
@@ -2199,6 +2462,855 @@ body {
 
   if (document.getElementById("deck")) boot();
   else document.addEventListener("DOMContentLoaded", boot);
+})();
+</script>
+<script id="runner-js">
+/* cv_slides code runner: sandboxed iframes for code sample pages (6). No dependencies, no build
+   step. Runs after viewer.js and only uses its public hooks (window.cvSlidesViewer and the
+   viewer:slidechange event on #deck). Never write the closing script tag literally in this file:
+   it is inlined into a <script> element. */
+(function () {
+  "use strict";
+
+  var LIMITER_PROCESSOR = "cv-slides-limiter";
+  var MAX_LINES = 1000;
+  var SANDBOX = "allow-scripts"; // 6.7: no allow-same-origin (it breaks Blob URL worklets on file://)
+  var FORWARDED_KEYS = [
+    "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Up", "Down", "Left", "Right",
+    " ", "Spacebar", "PageUp", "PageDown", "Home", "End", "Enter", "Tab", "Escape", "Esc"
+  ];
+
+  /* ---------- Pure logic (tested by scripts/runtime/dev/runner-logic.test.mjs) ----------
+     formatConsoleArgs, createLimiterCore and limiterWorkletMain are also serialized with
+     Function.prototype.toString into the iframe / the AudioWorklet, so they must not use any
+     outer variable. */
+
+  // Formats console arguments as one line of text: strings as they are, everything else in a
+  // JSON-like notation with cycle detection, a depth limit and size limits.
+  function formatConsoleArgs(args, options) {
+    options = options || {};
+    var maxDepth = options.maxDepth != null ? options.maxDepth : 2;
+    var maxItems = options.maxItems != null ? options.maxItems : 100;
+    var maxLength = options.maxLength != null ? options.maxLength : 10000;
+    var IDENT = /^[A-Za-z_$][\w$]*$/;
+    var stack = [];
+
+    function typeName(v) {
+      try {
+        var proto = Object.getPrototypeOf(v);
+        if (proto === null) return "[Object: null prototype]";
+        var ctor = proto && proto.constructor;
+        return (ctor && typeof ctor.name === "string" && ctor.name) || "Object";
+      } catch (e) {
+        return "Object";
+      }
+    }
+
+    function formatError(e) {
+      var name = "Error";
+      var message = "";
+      try {
+        name = e.name || typeName(e);
+        message = e.message != null ? String(e.message) : "";
+      } catch (x) {
+        /* exotic error object */
+      }
+      return message ? name + ": " + message : name;
+    }
+
+    function key(k) {
+      return IDENT.test(k) ? k : JSON.stringify(k);
+    }
+
+    function list(open, items, close, more) {
+      if (more > 0) items.push("... " + more + " more");
+      return items.length ? open + " " + items.join(", ") + " " + close : open + close;
+    }
+
+    function fmt(v, depth, top) {
+      var t = typeof v;
+      if (t === "string") return top ? v : JSON.stringify(v);
+      if (t === "number") return Object.is(v, -0) ? "-0" : String(v);
+      if (t === "bigint") return String(v) + "n";
+      if (t === "boolean" || v === undefined || v === null) return String(v);
+      if (t === "symbol") return v.toString();
+      if (t === "function") {
+        var src = "";
+        try {
+          src = Function.prototype.toString.call(v);
+        } catch (e) {
+          /* revoked proxy etc. */
+        }
+        var kind = /^class[\s{]/.test(src) ? "class" : "Function";
+        return "[" + kind + " " + (v.name || "(anonymous)") + "]";
+      }
+      if (stack.indexOf(v) >= 0) return "[Circular]";
+      if (v instanceof Error) return formatError(v);
+      if (v instanceof Date) return isNaN(v.getTime()) ? "Invalid Date" : v.toISOString();
+      if (v instanceof RegExp) return String(v);
+      var name = typeName(v);
+      if (typeof ArrayBuffer !== "undefined") {
+        if (v instanceof ArrayBuffer) return "ArrayBuffer { byteLength: " + v.byteLength + " }";
+        if (ArrayBuffer.isView(v) && !(v instanceof DataView)) {
+          if (depth > maxDepth) return "[" + name + "(" + v.length + ")]";
+          var n = Math.min(v.length, maxItems);
+          var vals = [];
+          for (var i = 0; i < n; i++) vals.push(fmt(v[i], depth + 1, false));
+          return name + "(" + v.length + ") " + list("[", vals, "]", v.length - n);
+        }
+      }
+      var isArray = Array.isArray(v);
+      var isMap = typeof Map !== "undefined" && v instanceof Map;
+      var isSet = typeof Set !== "undefined" && v instanceof Set;
+      if (depth > maxDepth) {
+        if (isArray) return "[Array(" + v.length + ")]";
+        if (isMap || isSet) return "[" + name + "(" + v.size + ")]";
+        return name === "Object" ? "[Object]" : "[" + name + "]";
+      }
+      stack.push(v);
+      try {
+        var items = [];
+        var more = 0;
+        if (isArray) {
+          var len = Math.min(v.length, maxItems);
+          for (var a = 0; a < len; a++) items.push(fmt(v[a], depth + 1, false));
+          return list("[", items, "]", v.length - len);
+        }
+        if (isMap || isSet) {
+          v.forEach(function (value, k) {
+            if (items.length >= maxItems) more++;
+            else items.push(isMap ? fmt(k, depth + 1, false) + " => " + fmt(value, depth + 1, false) : fmt(value, depth + 1, false));
+          });
+          return name + "(" + v.size + ") " + list("{", items, "}", more);
+        }
+        var keys = Object.keys(v);
+        for (var j = 0; j < keys.length; j++) {
+          if (items.length >= maxItems) {
+            more = keys.length - j;
+            break;
+          }
+          var value;
+          try {
+            value = fmt(v[keys[j]], depth + 1, false);
+          } catch (e) {
+            value = "[Getter error]";
+          }
+          items.push(key(keys[j]) + ": " + value);
+        }
+        var body = list("{", items, "}", more);
+        return name === "Object" ? body : name + " " + body;
+      } finally {
+        stack.pop();
+      }
+    }
+
+    var parts = [];
+    for (var p = 0; p < args.length; p++) {
+      var s;
+      try {
+        s = fmt(args[p], 0, true);
+      } catch (e) {
+        s = "[Unformattable]";
+      }
+      parts.push(s);
+    }
+    var out = parts.join(" ");
+    return out.length > maxLength ? out.slice(0, maxLength) + "…" : out;
+  }
+
+  // Look-ahead peak limiter (6.4). Order: NaN/±Infinity -> 0, peak limiter (threshold,
+  // look-ahead, release), hard clip to ±1. The audio is delayed by D = look-ahead samples; the
+  // gain is the minimum required gain over the last D+1 samples, smoothed for release
+  // (instant down, exponential up) and then averaged over D+1 samples. Every value in that
+  // average is <= the gain a peak needs, so the gain has fully reached it when the peak leaves
+  // the delay line, and the attack is a smooth ramp instead of a step.
+  function createLimiterCore(sampleRate, options) {
+    options = options || {};
+    var thresholdDb = options.thresholdDb != null ? options.thresholdDb : -1;
+    var threshold = Math.pow(10, thresholdDb / 20);
+    var lookahead = options.lookahead != null ? options.lookahead : 0.005;
+    var release = options.release != null ? options.release : 0.1;
+    var channels = options.channels || 2;
+    var D = Math.max(1, Math.round(lookahead * sampleRate));
+    var W = D + 1;
+    var releaseCoef = 1 - Math.exp(-1 / (Math.max(release, 1e-4) * sampleRate));
+
+    var delay = [];
+    for (var c = 0; c < channels; c++) delay.push(new Float32Array(D));
+    var delayPos = 0;
+    var cap = W + 1;
+    var dqVal = new Float64Array(cap);
+    var dqIdx = new Float64Array(cap);
+    var dqHead = 0;
+    var dqSize = 0;
+    var box = new Float64Array(W).fill(1);
+    var boxPos = 0;
+    var rel = 1;
+    var n = 0;
+    var stats = { nan: false, peak: 0, minGain: 1 };
+    var xs = new Float64Array(channels);
+
+    function process(input, output, frames) {
+      var inCh = input ? input.length : 0;
+      var outCh = Math.min(output.length, channels);
+      var sum = 0;
+      for (var b = 0; b < W; b++) sum += box[b]; // resync the running sum once per block
+      stats.nan = false;
+      stats.peak = 0;
+      stats.minGain = 1;
+      for (var i = 0; i < frames; i++) {
+        var peak = 0;
+        for (var ch = 0; ch < channels; ch++) {
+          var src = inCh === 0 ? null : inCh === 1 ? input[0] : input[ch];
+          var x = src ? src[i] : 0;
+          if (x - x !== 0) {
+            // NaN or ±Infinity
+            x = 0;
+            stats.nan = true;
+          }
+          xs[ch] = x;
+          var ax = x < 0 ? -x : x;
+          if (ax > peak) peak = ax;
+        }
+        if (peak > stats.peak) stats.peak = peak;
+        var need = peak > threshold ? threshold / peak : 1;
+        // sliding minimum over the last W samples (monotonic deque)
+        while (dqSize > 0 && dqVal[(dqHead + dqSize - 1) % cap] >= need) dqSize--;
+        var at = (dqHead + dqSize) % cap;
+        dqVal[at] = need;
+        dqIdx[at] = n;
+        dqSize++;
+        while (dqIdx[dqHead] <= n - W) {
+          dqHead = (dqHead + 1) % cap;
+          dqSize--;
+        }
+        var h = dqVal[dqHead];
+        rel = h < rel ? h : rel + (h - rel) * releaseCoef;
+        sum += rel - box[boxPos];
+        box[boxPos] = rel;
+        boxPos = boxPos + 1 === W ? 0 : boxPos + 1;
+        var gain = sum / W;
+        if (gain > 1) gain = 1;
+        if (gain < stats.minGain) stats.minGain = gain;
+        for (var oc = 0; oc < channels; oc++) {
+          var line = delay[oc];
+          var y = line[delayPos] * gain;
+          line[delayPos] = xs[oc];
+          if (y > 1) y = 1;
+          else if (y < -1) y = -1;
+          if (oc < outCh) output[oc][i] = y;
+        }
+        delayPos = delayPos + 1 === D ? 0 : delayPos + 1;
+        n++;
+      }
+      return stats;
+    }
+
+    return { process: process, delay: D, threshold: threshold };
+  }
+
+  // Runs inside the AudioWorkletGlobalScope (AudioWorkletProcessor, registerProcessor and
+  // sampleRate are globals there).
+  function limiterWorkletMain(createLimiterCore, name) {
+    class CvSlidesLimiter extends AudioWorkletProcessor {
+      constructor(options) {
+        super();
+        var o = (options && options.processorOptions) || {};
+        this.core = createLimiterCore(sampleRate, o);
+        this.reportEvery = Math.max(1, Math.round(((o.reportInterval || 0.05) * sampleRate) / 128));
+        this.blocks = 0;
+        this.peak = 0;
+        this.minGain = 1;
+        this.nanReported = false;
+      }
+      process(inputs, outputs) {
+        var output = outputs[0] || [];
+        var frames = output.length ? output[0].length : 128;
+        var r = this.core.process(inputs[0] || [], output, frames);
+        if (r.nan && !this.nanReported) {
+          this.nanReported = true;
+          this.port.postMessage({ type: "nan" });
+        }
+        if (r.peak > this.peak) this.peak = r.peak;
+        if (r.minGain < this.minGain) this.minGain = r.minGain;
+        if (++this.blocks >= this.reportEvery) {
+          this.port.postMessage({ type: "level", peak: this.peak, gr: -20 * Math.log10(Math.max(this.minGain, 1e-9)) });
+          this.blocks = 0;
+          this.peak = 0;
+          this.minGain = 1;
+        }
+        return true;
+      }
+    }
+    registerProcessor(name, CvSlidesLimiter);
+  }
+
+  function limiterModuleSource() {
+    return "(" + limiterWorkletMain.toString() + ")(" + createLimiterCore.toString() + ", " +
+      JSON.stringify(LIMITER_PROCESSOR) + ");\n";
+  }
+
+  // JSON for embedding into an inline script: no "<" so nothing can close the element.
+  function jsonForScript(value) {
+    return JSON.stringify(value).replace(/</g, "\\u003c");
+  }
+
+  function cssValue(value) {
+    return String(value || "").replace(/[<>{};]/g, "").trim();
+  }
+
+  /* ---------- Code inside the iframe ---------- */
+
+  // The bootstrap of the iframe document. Receives the code through postMessage ("init"),
+  // runs it as a module script on ▶ Run and talks to the parent with {cvRunner: 1, type}.
+  function frameMain(cfg, formatConsoleArgs, limiterSource) {
+    var parentWin = window.parent;
+    var runBtn = document.getElementById("run");
+    var stopBtn = document.getElementById("stop");
+    var statusOut = document.getElementById("out");
+    var statusLimit = document.getElementById("limit");
+    var resumeBtn = document.getElementById("resume");
+    var data = null;
+    var running = false;
+    var ctx = null;
+    var output = null;
+    var assetCache = {};
+    var lastActive = -1e9;
+    var lastLimit = -1e9;
+    var nanWarned = false;
+
+    function send(msg) {
+      msg.cvRunner = 1;
+      parentWin.postMessage(msg, "*");
+    }
+
+    function format(args) {
+      try {
+        return formatConsoleArgs(args, { maxDepth: 2, maxItems: 100, maxLength: 10000 });
+      } catch (e) {
+        return "[format error]";
+      }
+    }
+
+    function emit(level, args) {
+      send({ type: "console", level: level, text: format(args) });
+    }
+
+    ["log", "info", "warn", "error", "debug"].forEach(function (level) {
+      var original = console[level];
+      console[level] = function () {
+        var args = Array.prototype.slice.call(arguments);
+        emit(level, args);
+        if (original) {
+          try {
+            original.apply(console, args);
+          } catch (e) {
+            /* ignore */
+          }
+        }
+      };
+    });
+
+    function where(file, line, col) {
+      if (!line) return "";
+      var name = String(file || "").split(/[\/\\]/).pop() || cfg.name;
+      return " (" + name + ":" + line + (col ? ":" + col : "") + ")";
+    }
+
+    window.addEventListener("error", function (e) {
+      var text = e.error !== undefined && e.error !== null ? format([e.error]) : e.message || "Error";
+      if (!/^Uncaught\b/.test(text)) text = "Uncaught " + text;
+      send({ type: "console", level: "error", text: text + where(e.filename, e.lineno, e.colno) });
+    });
+
+    window.addEventListener("unhandledrejection", function (e) {
+      send({ type: "console", level: "error", text: "Uncaught (in promise) " + format([e.reason]) });
+    });
+
+    var forwarded = {};
+    cfg.keys.forEach(function (k) {
+      forwarded[k] = true;
+    });
+    window.addEventListener("keydown", function (e) {
+      if (e.defaultPrevented || e.isComposing || e.altKey || e.ctrlKey || e.metaKey) return;
+      if (!forwarded[e.key]) return;
+      var t = e.target;
+      if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+      e.preventDefault();
+      send({ type: "key", key: e.key, repeat: !!e.repeat });
+    });
+
+    window.addEventListener("pagehide", function () {
+      if (ctx && ctx.state !== "closed") ctx.close().catch(function () {});
+    });
+
+    /* --- slide API (6.6) --- */
+
+    function decodeBase64(b64) {
+      var bin = atob(b64 || "");
+      var bytes = new Uint8Array(bin.length);
+      for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      return bytes;
+    }
+
+    function assetHandle(path) {
+      var assets = (data && data.assets) || {};
+      if (typeof path !== "string" || !Object.prototype.hasOwnProperty.call(assets, path)) {
+        throw new Error('slide.asset: "' + path + '" は assets に指定されていません');
+      }
+      var entry = assets[path];
+      var cache = assetCache[path] || (assetCache[path] = {});
+      function bytes() {
+        if (!cache.bytes) cache.bytes = decodeBase64(entry.data);
+        return cache.bytes;
+      }
+      return Object.freeze({
+        path: path,
+        type: entry.type || "application/octet-stream",
+        bytes: function () {
+          return bytes().slice().buffer;
+        },
+        text: function () {
+          return new TextDecoder().decode(bytes());
+        },
+        url: function () {
+          if (!cache.url) cache.url = URL.createObjectURL(new Blob([bytes()], { type: entry.type || "application/octet-stream" }));
+          return cache.url;
+        }
+      });
+    }
+
+    var LEVELS = { log: 1, info: 1, warn: 1, error: 1, debug: 1 };
+    window.slide = Object.freeze({
+      audioContext: function () {
+        if (!ctx) throw new Error("slide.audioContext: AudioContext を使えません");
+        return ctx;
+      },
+      audioOutput: function () {
+        if (!output) throw new Error("slide.audioOutput: AudioContext を使えません");
+        return output;
+      },
+      asset: assetHandle,
+      connectPort: function (port) {
+        if (!port || typeof port.addEventListener !== "function") throw new TypeError("slide.connectPort: MessagePort を渡してください");
+        port.addEventListener("message", function (e) {
+          var m = e.data;
+          if (!m || m.type !== "log") return;
+          emit(LEVELS[m.level] ? m.level : "log", Array.isArray(m.args) ? m.args : [m.args]);
+        });
+        if (port.start) port.start();
+      }
+    });
+
+    /* --- audio: limiter in front of the destination (6.4) --- */
+
+    function onLevel(peak, gr) {
+      var now = performance.now();
+      if (peak > 1e-4) lastActive = now;
+      if (gr >= 3) lastLimit = now;
+      renderStatus();
+    }
+
+    function renderStatus() {
+      var now = performance.now();
+      var live = !!ctx && ctx.state === "running";
+      statusOut.hidden = !(live && now - lastActive < 300);
+      statusLimit.hidden = !(live && now - lastLimit < 300);
+      resumeBtn.hidden = !(running && ctx && ctx.state === "suspended");
+    }
+
+    function warnNaN() {
+      if (nanWarned) return;
+      nanWarned = true;
+      emit("warn", ["[リミッター] NaN / Infinity を検出したため 0 に置き換えました"]);
+    }
+
+    function fallbackLimiter(input) {
+      var comp = ctx.createDynamicsCompressor();
+      comp.threshold.value = -1;
+      comp.ratio.value = 20;
+      comp.knee.value = 0;
+      comp.attack.value = 0;
+      comp.release.value = 0.1;
+      var clip = ctx.createWaveShaper();
+      clip.curve = new Float32Array([-1, 1]);
+      var analyser = ctx.createAnalyser();
+      analyser.fftSize = 2048;
+      input.connect(comp);
+      comp.connect(clip);
+      clip.connect(ctx.destination);
+      clip.connect(analyser);
+      var buf = new Float32Array(analyser.fftSize);
+      setInterval(function () {
+        analyser.getFloatTimeDomainData(buf);
+        var peak = 0;
+        for (var i = 0; i < buf.length; i++) {
+          var a = Math.abs(buf[i]);
+          if (a > peak) peak = a;
+        }
+        var red = typeof comp.reduction === "number" ? comp.reduction : comp.reduction && comp.reduction.value;
+        onLevel(peak, -(red || 0));
+      }, 100);
+    }
+
+    function setupAudio() {
+      try {
+        ctx = new AudioContext({ latencyHint: "interactive" });
+      } catch (e) {
+        ctx = null;
+        emit("warn", ["AudioContext を作れません: " + e]);
+        return Promise.resolve();
+      }
+      if (ctx.state !== "running") ctx.resume().catch(function () {});
+      ctx.addEventListener("statechange", renderStatus);
+      output = ctx.createGain();
+      if (!ctx.audioWorklet || typeof AudioWorkletNode !== "function" || cfg.forceFallback) {
+        fallbackLimiter(output);
+        return Promise.resolve();
+      }
+      var url = URL.createObjectURL(new Blob([limiterSource], { type: "text/javascript" }));
+      return ctx.audioWorklet.addModule(url).then(
+        function () {
+          var node = new AudioWorkletNode(ctx, cfg.limiterName, {
+            numberOfInputs: 1,
+            numberOfOutputs: 1,
+            outputChannelCount: [2],
+            channelCount: 2,
+            channelCountMode: "explicit",
+            channelInterpretation: "speakers",
+            processorOptions: { thresholdDb: -1, lookahead: 0.005, release: 0.1, reportInterval: 0.05 }
+          });
+          node.port.onmessage = function (e) {
+            var m = e.data || {};
+            if (m.type === "nan") warnNaN();
+            else if (m.type === "level") onLevel(m.peak, m.gr);
+          };
+          output.connect(node);
+          node.connect(ctx.destination);
+        },
+        function (err) {
+          emit("warn", ["[リミッター] AudioWorklet を使えないため DynamicsCompressor で代用します: " + err]);
+          fallbackLimiter(output);
+        }
+      );
+    }
+
+    /* --- run --- */
+
+    function decodeSource(b64) {
+      return new TextDecoder().decode(decodeBase64(b64));
+    }
+
+    function run() {
+      if (!data || !data.source || running) return;
+      running = true;
+      runBtn.classList.add("is-running");
+      stopBtn.disabled = false;
+      send({ type: "started" });
+      var source;
+      try {
+        source = decodeSource(data.source);
+      } catch (e) {
+        emit("error", ["コードを読めません: " + e]);
+        return;
+      }
+      setupAudio().then(function () {
+        renderStatus();
+        var script = document.createElement("script");
+        script.type = "module";
+        script.textContent = source + "\n//# sourceURL=" + cfg.name + "\n";
+        document.body.appendChild(script);
+      });
+    }
+
+    runBtn.addEventListener("click", function () {
+      if (running) send({ type: "rerun" });
+      else run();
+    });
+    stopBtn.addEventListener("click", function () {
+      if (running) send({ type: "stop" });
+    });
+    resumeBtn.addEventListener("click", function () {
+      if (ctx) ctx.resume().then(renderStatus, function () {});
+    });
+    // Any click in the frame may unlock a context that autoplay rules kept suspended.
+    document.addEventListener("pointerdown", function () {
+      if (running && ctx && ctx.state === "suspended") ctx.resume().then(renderStatus, function () {});
+    });
+    setInterval(renderStatus, 250);
+
+    window.addEventListener("message", function (e) {
+      if (e.source !== parentWin) return;
+      var m = e.data;
+      if (!m || m.cvRunner !== 1 || m.type !== "init" || data) return;
+      data = m.data || {};
+      if (m.autorun) run();
+    });
+  }
+
+  // The srcdoc of a waiting iframe: Run / Stop and the status, styled like the panel.
+  function buildSrcdoc(theme, options) {
+    var vars = "";
+    Object.keys(theme).forEach(function (k) {
+      vars += "--" + k + ":" + cssValue(theme[k]) + ";";
+    });
+    var css =
+      ":root{" + vars + "color-scheme:normal}" +
+      "html,body{margin:0;height:100%;overflow:hidden;overscroll-behavior:none;background:var(--bg);color:var(--fg)}" +
+      "body{box-sizing:border-box;display:flex;align-items:center;gap:.5em;padding:0 var(--pad);" +
+      "font:var(--size)/1.2 var(--font-sans);-webkit-user-select:none;user-select:none;cursor:default}" +
+      "button{font:inherit;font-weight:700;margin:0;padding:.2em .75em;border:.1em solid var(--fg);border-radius:0;" +
+      "background:transparent;color:var(--fg);cursor:pointer;white-space:nowrap}" +
+      "button:focus{outline:none}button:focus-visible{outline:.1em solid var(--accent);outline-offset:.1em}" +
+      "#run{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}" +
+      "button:disabled{opacity:.35;cursor:default}" +
+      ".status{margin-left:auto;display:flex;align-items:center;gap:.8em;white-space:nowrap;font-size:.9em}" +
+      "#out{color:var(--accent);font-weight:700}#limit{color:var(--error);font-weight:700}" +
+      "#resume{font-size:.9em;border-color:var(--accent);color:var(--accent)}" +
+      "[hidden]{display:none!important}";
+    var body =
+      (options.runnable
+        ? '<button type="button" id="run">▶ Run</button><button type="button" id="stop" disabled>■ Stop</button>'
+        : "") +
+      '<span class="status"><button type="button" id="resume" hidden>クリックして音声を開始</button>' +
+      '<span id="out" hidden>● 出力中</span><span id="limit" hidden>リミッター作動中</span></span>';
+    var cfg = {
+      name: options.name || "run.js",
+      keys: FORWARDED_KEYS,
+      limiterName: LIMITER_PROCESSOR,
+      forceFallback: !!options.forceFallback
+    };
+    var script = options.runnable
+      ? "(" + frameMain.toString() + ")(" + jsonForScript(cfg) + ", " + formatConsoleArgs.toString() + ", " +
+        jsonForScript(limiterModuleSource()) + ");"
+      : "";
+    var end = "<" + "/script>";
+    return (
+      '<!doctype html><html lang="ja"><head><meta charset="utf-8"><style>' + css + "<" + "/style></head><body>" +
+      body + (script ? "<script>" + script + end : "") + "</body></html>"
+    );
+  }
+
+  var internals = {
+    formatConsoleArgs: formatConsoleArgs,
+    createLimiterCore: createLimiterCore,
+    limiterModuleSource: limiterModuleSource,
+    buildSrcdoc: buildSrcdoc,
+    jsonForScript: jsonForScript
+  };
+
+  if (typeof document === "undefined") {
+    globalThis.__cvSlidesRunnerInternals = internals;
+    return;
+  }
+
+  /* ---------- Parent page ---------- */
+
+  function init() {
+    var viewer = window.cvSlidesViewer;
+    var deck = document.getElementById("deck");
+    if (!viewer || !deck || deck.hasAttribute("data-runner-ready")) return;
+    deck.setAttribute("data-runner-ready", "");
+
+    var runners = [];
+    var current = null; // the runner whose slide is current (and has an iframe)
+
+    viewer.slides.forEach(function (slide, index) {
+      if (!slide.classList.contains("slide--code")) return;
+      var root = slide.querySelector(".runner");
+      if (!root) return;
+      var r = {
+        index: index,
+        slide: slide,
+        root: root,
+        slot: root.querySelector(".runner__frame-slot"),
+        console: root.querySelector(".runner__console"),
+        runnable: root.getAttribute("data-runnable") !== "false",
+        data: undefined,
+        frame: null,
+        running: false,
+        queue: [],
+        flushPending: false
+      };
+      if (!r.slot || !r.console) return;
+      var clear = root.querySelector(".runner__clear");
+      if (clear) {
+        clear.addEventListener("click", function () {
+          clearConsole(r);
+        });
+      }
+      runners[index] = r;
+    });
+
+    deck.addEventListener("viewer:slidechange", function (e) {
+      activate(e.detail.index);
+    });
+    // Mode switches do not touch the iframe (5.2): nothing listens to viewer:modechange.
+    window.addEventListener("message", onMessage);
+    activate(viewer.index);
+
+    viewer.runner = {
+      stop: function () {
+        if (current) stop(current, true);
+      },
+      internals: internals
+    };
+
+    function activate(index) {
+      var next = runners[index] || null;
+      if (current && current !== next) {
+        destroy(current, current.running ? "■ 停止" : null);
+        current = null;
+      }
+      if (next && next !== current) {
+        current = next;
+        createFrame(next, false);
+      }
+    }
+
+    function payload(r) {
+      if (r.data === undefined) {
+        r.data = null;
+        var node = r.root.querySelector("script.runner__data");
+        try {
+          r.data = node ? JSON.parse(node.textContent) : null;
+        } catch (e) {
+          appendLine(r, "error", "実行データを読めません: " + e.message);
+        }
+      }
+      return r.data;
+    }
+
+    function theme(r) {
+      var cs = getComputedStyle(r.slot);
+      function v(name, fallback) {
+        return cs.getPropertyValue(name).trim() || (fallback ? cs.getPropertyValue(fallback).trim() : "");
+      }
+      return {
+        fg: v("--runner-fg") || cs.color,
+        bg: v("--runner-bg") || backgroundOf(r.slot),
+        accent: v("--runner-accent", "--color-accent") || "#e8590c",
+        "on-accent": v("--runner-on-accent") || "#ffffff",
+        muted: v("--runner-muted", "--color-muted") || "#707070",
+        error: v("--runner-error") || "#d1242f",
+        "font-sans": v("--font-sans") || "sans-serif",
+        "font-mono": v("--font-mono") || "monospace",
+        size: cs.fontSize || "28px",
+        pad: v("--runner-pad") || "0.6em"
+      };
+    }
+
+    function backgroundOf(node) {
+      for (var n = node; n && n.nodeType === 1; n = n.parentElement) {
+        var bg = getComputedStyle(n).backgroundColor;
+        if (bg && bg !== "transparent" && !/rgba\(.*,\s*0\)$/.test(bg)) return bg;
+        if (n === node.closest(".slide")) break;
+      }
+      return "#ffffff";
+    }
+
+    function createFrame(r, autorun) {
+      var data = payload(r);
+      var runnable = r.runnable && !!(data && data.source);
+      if (!runnable) return; // nothing to run: the slot stays empty (the design may label it)
+      var frame = document.createElement("iframe");
+      frame.className = "runner__frame";
+      frame.setAttribute("sandbox", SANDBOX);
+      frame.setAttribute("allow", "autoplay");
+      frame.setAttribute("title", "コードの実行(▶ Run / ■ Stop)");
+      frame.srcdoc = buildSrcdoc(theme(r), { runnable: true, name: data.name || "run.js" });
+      frame.addEventListener("load", function () {
+        if (r.frame !== frame || !frame.contentWindow) return;
+        frame.contentWindow.postMessage({ cvRunner: 1, type: "init", data: data, autorun: autorun }, "*");
+      });
+      r.frame = frame;
+      r.running = false;
+      r.slot.appendChild(frame);
+    }
+
+    function destroy(r, systemLine) {
+      if (r.frame) {
+        var frame = r.frame;
+        r.frame = null;
+        if (frame.parentNode) frame.parentNode.removeChild(frame);
+      }
+      if (systemLine) appendLine(r, "system", systemLine);
+      r.running = false;
+    }
+
+    function stop(r, recreate) {
+      destroy(r, r.running ? "■ 停止" : null);
+      if (recreate && r === current) createFrame(r, false);
+    }
+
+    function onMessage(e) {
+      var r = current;
+      if (!r || !r.frame || e.source !== r.frame.contentWindow) return;
+      var m = e.data;
+      if (!m || m.cvRunner !== 1) return;
+      switch (m.type) {
+        case "started":
+          clearConsole(r);
+          r.running = true;
+          appendLine(r, "system", "▶ 実行開始");
+          break;
+        case "stop":
+          stop(r, true);
+          break;
+        case "rerun":
+          destroy(r, null);
+          createFrame(r, true);
+          break;
+        case "console":
+          appendLine(r, m.level, String(m.text));
+          break;
+        case "key":
+          if (typeof viewer.handleKey === "function") viewer.handleKey(String(m.key), !!m.repeat);
+          break;
+      }
+    }
+
+    /* --- console (6.3) --- */
+
+    var LEVEL_CLASS = { log: 1, info: 1, warn: 1, error: 1, debug: 1, system: 1 };
+
+    function appendLine(r, level, text) {
+      r.queue.push({ level: LEVEL_CLASS[level] ? level : "log", text: text });
+      if (r.queue.length > MAX_LINES) r.queue.splice(0, r.queue.length - MAX_LINES);
+      if (!r.flushPending) {
+        r.flushPending = true;
+        (window.requestAnimationFrame || setTimeout)(function () {
+          flush(r);
+        });
+      }
+    }
+
+    function flush(r) {
+      r.flushPending = false;
+      if (!r.queue.length) return;
+      var box = r.console;
+      var stick = box.scrollHeight - box.scrollTop - box.clientHeight < 8;
+      var fragment = document.createDocumentFragment();
+      r.queue.forEach(function (item) {
+        var line = document.createElement("div");
+        line.className = "runner__line runner__line--" + item.level;
+        line.textContent = item.text;
+        fragment.appendChild(line);
+      });
+      r.queue = [];
+      box.appendChild(fragment);
+      while (box.childElementCount > MAX_LINES) box.removeChild(box.firstElementChild);
+      if (stick) box.scrollTop = box.scrollHeight;
+    }
+
+    function clearConsole(r) {
+      r.queue = [];
+      while (r.console.firstChild) r.console.removeChild(r.console.firstChild);
+    }
+  }
+
+  if (window.cvSlidesViewer) init();
+  else document.addEventListener("DOMContentLoaded", init);
 })();
 </script>
 </body>

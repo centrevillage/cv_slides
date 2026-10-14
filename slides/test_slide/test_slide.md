@@ -287,6 +287,80 @@ $$y[n] = \sum_{k=0}^{N-1} h[k]\,x[n-k]$$
 
 ---
 
+<!-- page: code -->
+## コンソール出力
+
+文字列・オブジェクト・警告を表示して、最後にわざと例外を投げる
+
+```js title="console.js" showLineNumbers {9}
+console.log("こんにちは", 42, true, null);
+console.info("info: サンプルレート", 48000, "Hz");
+console.log({ name: "biquad", fc: 1000, q: 0.707, coeffs: [0.2, 0.4, 0.2], nested: { a: { b: { c: { d: 1 } } } } });
+const node = { id: 1 };
+node.self = node; // circular reference
+console.log(node);
+console.warn("警告: ゲインが大きすぎます");
+console.debug("debug message");
+throw new Error("最後にわざと例外を投げる");
+```
+
+---
+
+<!-- page: code -->
+## サイン波を鳴らす
+
+```js title="sine.js"
+const ctx = slide.audioContext();
+const osc = new OscillatorNode(ctx, { frequency: 440 });
+const gain = new GainNode(ctx, { gain: 0.2 });
+osc.connect(gain).connect(slide.audioOutput());
+osc.start();
+console.log("playing 440 Hz");
+setTimeout(() => console.log("1 秒経過"), 1000);
+```
+
+---
+
+<!-- page: code -->
+## Biquad フィルタ
+
+C++ のコードを表示して、同じ処理を AudioWorklet で鳴らす(ホワイトノイズ → ローパス 800 Hz)
+
+```cpp title="biquad.cpp" showLineNumbers {2}
+float process(float x) {
+  float y = b0*x + b1*x1 + b2*x2 - a1*y1 - a2*y2;
+  x2 = x1; x1 = x;
+  y2 = y1; y1 = y;
+  return y;
+}
+```
+
+```js run assets="worklet/biquad.js"
+const ctx = slide.audioContext();
+await ctx.audioWorklet.addModule(slide.asset("worklet/biquad.js").url());
+const node = new AudioWorkletNode(ctx, "biquad-demo", {
+  processorOptions: { cutoff: 800, q: Math.SQRT1_2, gain: 0.3 },
+});
+slide.connectPort(node.port);
+node.connect(slide.audioOutput());
+console.log("white noise -> lowpass 800 Hz");
+```
+
+---
+
+<!-- page: code -->
+## WASM を呼ぶ
+
+`add(i32, i32) -> i32` だけを持つ WASM をアセットとして埋め込んで呼び出す
+
+```js title="wasm.js" assets="wasm/add.wasm"
+const bytes = await slide.asset("wasm/add.wasm").bytes();
+const { instance } = await WebAssembly.instantiate(bytes);
+console.log("add(2, 3) =", instance.exports.add(2, 3));
+```
+
+---
+
 <!-- page: image, fit: cover -->
 ![全面画像のサンプル](img/wave.png)
 2026.08 下北沢(fit: cover)

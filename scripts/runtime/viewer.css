@@ -63,6 +63,17 @@ body {
   white-space: nowrap !important;
 }
 
+/* Code runner iframe (6.2): fills the slot the design sizes; created by runner.js. */
+iframe.runner__frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
 /* ---- Viewer root: navigation mode (list | main) ---- */
 
 .viewer {

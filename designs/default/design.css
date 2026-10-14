@@ -557,6 +557,156 @@
   white-space: nowrap;
 }
 
+/* ---- Code sample page (7.6): title, optional description, code 60% | panel 40%. The panel
+   is: iframe row (▶ Run / ■ Stop + status, drawn by runner.js with the --runner-* colors),
+   console bar with Clear, console. Code and console scroll on their own (wheel over them
+   scrolls instead of turning the page). ---- */
+
+.slide--code {
+  --runner-fg: var(--color-code-block-fg);
+  --runner-bg: var(--color-code-block-bg);
+  --runner-muted: var(--color-code-block-muted);
+  --runner-accent: var(--color-accent);
+  --runner-on-accent: #ffffff;
+  --runner-warn: #9a6700;
+  --runner-warn-bg: #fff8c5;
+  --runner-error: #cf222e;
+  --runner-error-bg: #ffebe9;
+  --runner-border: #d0d0d0;
+  --size-console: 24px;
+  --size-runner-controls: 26px;
+}
+
+.slide--code .slide__inner {
+  display: flex;
+  flex-direction: column;
+}
+
+.code__description {
+  flex: 0 0 auto;
+  margin: -8px 0 32px;
+  font-size: var(--size-body);
+  line-height: 1.5;
+}
+
+.runner {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  align-items: stretch;
+  gap: 32px;
+}
+
+.runner__code {
+  flex: 6 1 0%;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+}
+
+.runner__code > pre {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+.runner__panel {
+  flex: 4 1 0%;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--runner-bg);
+  color: var(--runner-fg);
+}
+
+/* Height of the iframe row; runner.js copies color and font size from here into the iframe. */
+.runner__frame-slot {
+  flex: 0 0 auto;
+  height: 80px;
+  font-family: var(--font-sans);
+  font-size: var(--size-runner-controls);
+  background: var(--runner-bg);
+  color: var(--runner-fg);
+}
+
+.runner[data-runnable="false"] .runner__frame-slot {
+  display: flex;
+  align-items: center;
+  padding: 0 0.6em;
+  box-sizing: border-box;
+  color: var(--runner-muted);
+}
+
+.slide--code .runner[data-runnable="false"] .runner__frame-slot::before {
+  content: "実行するコードはありません";
+}
+
+.runner__console-bar {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 8px 16px;
+  border-top: 2px solid var(--runner-border);
+  border-bottom: 2px solid var(--runner-border);
+}
+
+.runner__clear {
+  margin: 0;
+  padding: 2px 16px;
+  border: 2px solid var(--runner-muted);
+  border-radius: 0;
+  background: transparent;
+  color: var(--runner-fg);
+  font-family: var(--font-sans);
+  font-size: var(--size-caption);
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.runner__clear:hover {
+  border-color: var(--runner-fg);
+}
+
+.runner__console {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  padding: 12px 20px;
+  font-family: var(--font-mono);
+  font-size: var(--size-console);
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.runner__line {
+  margin: 0 -20px;
+  padding: 0 20px;
+}
+
+.runner__line--debug,
+.runner__line--system {
+  color: var(--runner-muted);
+}
+
+.runner__line--warn {
+  color: var(--runner-warn);
+  background: var(--runner-warn-bg);
+}
+
+.runner__line--error {
+  color: var(--runner-error);
+  background: var(--runner-error-bg);
+}
+
 /* ---- Full-screen image page (7.7): no .slide__inner, the image covers the whole canvas ---- */
 
 .slide--image {

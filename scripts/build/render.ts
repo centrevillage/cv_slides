@@ -12,6 +12,7 @@ import {
 } from './parse.ts';
 import {
   createMarkdown,
+  fenceInfo,
   imgTag,
   isImageOnly,
   makeEnv,
@@ -21,8 +22,8 @@ import {
   splitBlocks,
   type Block,
 } from './markdown.ts';
-import { ImageEmbedder, type ReadFile } from './assets.ts';
-import { sharedCodeHighlighter, type CodeHighlighter } from './highlight.ts';
+import { ImageEmbedder, loadRunAsset, type ReadFile, type RunAsset, type RunAssetResult } from './assets.ts';
+import { parseFenceInfo, sharedCodeHighlighter, type CodeHighlighter } from './highlight.ts';
 
 export interface Design {
   /** Directory name under designs/ (used for the design-<id> class). */
@@ -35,7 +36,10 @@ export interface Design {
 
 export interface Runtime {
   css: string;
+  /** viewer.js */
   js: string;
+  /** runner.js (code page runtime, DETAILED_SPEC.md 6) */
+  runner: string;
 }
 
 export interface BuildOptions {
@@ -48,9 +52,9 @@ export interface BuildOptions {
   /** Returns the design, or null when it does not exist. May throw on a broken design. */
   loadDesign: (name: string) => Design | null;
   runtime: Runtime;
-  /** Directory that image paths are relative to (the .md file's directory). Default: cwd. */
+  /** Directory that image and asset paths are relative to (the .md file's directory). Default: cwd. */
   baseDir?: string;
-  /** File reader for images (for tests). Default: the file system. */
+  /** File reader for images and code page assets (for tests). Default: the file system. */
   readFile?: ReadFile;
   /** Code highlighter; created once and shared when omitted. */
   highlighter?: CodeHighlighter;
@@ -63,7 +67,7 @@ export interface BuildResult {
   slideCount: number;
 }
 
-type RenderedType = 'title' | 'content' | 'takahashi' | 'image';
+type RenderedType = 'title' | 'content' | 'takahashi' | 'code' | 'image';
 
 interface Page {
   type: RenderedType;
@@ -95,6 +99,14 @@ export function escapeInlineScript(js: string): string {
   return js.replace(/<\/(script)/gi, '<\\/$1');
 }
 
+/**
+ * Makes JSON text safe inside a <script type="application/json"> element: escaping every `<`
+ * rules out `</script` and `<!--`. JSON.parse restores the original text.
+ */
+export function escapeScriptJson(json: string): string {
+  return json.replace(/</g, '\\u003c');
+}
+
 /** Prevents inlined CSS from closing its <style> element early. */
 export function escapeInlineStyle(css: string): string {
   return css.replace(/<\/(style)/gi, '<\\/$1');
@@ -112,6 +124,8 @@ interface Context {
   embedder: ImageEmbedder;
   /** Embedded title page icon (front matter `icon`), or null. */
   icon: string | null;
+  /** Reads a code page asset (path as written in `assets="..."`). */
+  loadAsset: (ref: string) => RunAssetResult;
 }
 
 function loc(slide: Slide, block?: Block): { line: number; slide: number } {
@@ -366,6 +380,149 @@ function imagePage(ctx: Context, slide: Slide): Page {
   };
 }
 
+// ---------------------------------------------------------------------------
+// Code page (DETAILED_SPEC.md 4.11, 6, 8.3)
+// ---------------------------------------------------------------------------
+
+/** Languages a run block (or a displayed block that is also run) may use. */
+const RUN_LANGUAGES: ReadonlySet<string> = new Set(['js', 'javascript']);
+
+interface Fence {
+  block: Block;
+  token: Token;
+  /** Has the `run` word: a hidden run block. */
+  run: boolean;
+  /** The language is js / javascript. */
+  js: boolean;
+  /** Paths from `assets="..."` as written, or null without the option. */
+  assets: string[] | null;
+}
+
+function readFence(ctx: Context, block: Block): Fence {
+  const info = parseFenceInfo(ctx.md.utils.unescapeAll(fenceInfo(block.head)));
+  let assets: string[] | null = null;
+  for (const word of info.rest) {
+    if (!word.startsWith('assets=')) continue;
+    const value = word.slice('assets='.length);
+    const quoted = /^"(.*)"$|^'(.*)'$/.exec(value);
+    const list = (quoted ? (quoted[1] ?? quoted[2] ?? '') : value).split(/\s+/).filter((p) => p !== '');
+    assets = [...(assets ?? []), ...list];
+  }
+  return {
+    block,
+    token: block.head,
+    run: info.rest.includes('run'),
+    js: RUN_LANGUAGES.has(info.lang.toLowerCase()),
+    assets,
+  };
+}
+
+function codePage(ctx: Context, slide: Slide): Page {
+  const env = slideEnv(ctx, slide);
+  const blocks = splitBlocks(ctx.md.parse(slide.source, env));
+  let heading: string | null = null;
+  let description: string | null = null;
+  let display: Fence | null = null;
+  let run: Fence | null = null;
+  let extraParagraph: Block | null = null;
+  let ignored: Block | null = null;
+  let first = true;
+
+  for (const block of blocks) {
+    if (isIgnorableHtml(block)) continue;
+    const head = block.head;
+    const isFirst = first;
+    first = false;
+    if (isFirst && head.type === 'heading_open' && (head.tag === 'h1' || head.tag === 'h2')) {
+      heading = renderBlockInline(ctx.md, block, env);
+    } else if (head.type === 'paragraph_open' && display === null) {
+      if (description === null) description = renderBlockInline(ctx.md, block, env);
+      else extraParagraph ??= block;
+    } else if (head.type === 'fence') {
+      const fence = readFence(ctx, block);
+      if (fence.run) {
+        if (!fence.js) {
+          ctx.reporter.warn('run は js / javascript のコードブロックにだけ指定できます(このブロックを無視しました)', loc(slide, block));
+        } else if (run !== null) {
+          ctx.reporter.warn('実行ブロック(run)が複数あります(2つ目以降を無視しました)', loc(slide, block));
+        } else {
+          run = fence;
+        }
+      } else if (display === null) {
+        display = fence;
+      } else {
+        ctx.reporter.warn('2つ目以降のコードブロックを無視しました(表示するのは最初のコードブロックだけです)', loc(slide, block));
+      }
+    } else {
+      ignored ??= block;
+    }
+  }
+  if (extraParagraph) {
+    ctx.reporter.warn('説明文は1段落までです(2段落目以降を無視しました)', loc(slide, extraParagraph));
+  }
+  if (ignored) {
+    ctx.reporter.warn(
+      'コードサンプルページに合わない要素を無視しました(見出し・説明文1段落・コードブロックだけを使います)',
+      loc(slide, ignored),
+    );
+  }
+
+  const runFence = run ?? (display?.js ? display : null);
+  if (display === null && run === null) {
+    ctx.reporter.warn('コードサンプルページにコードブロックがありません', loc(slide));
+  } else if (display === null) {
+    ctx.reporter.warn('表示するコードブロックがありません(run を付けた実行ブロックは画面に表示されません)', loc(slide));
+  } else if (runFence === null) {
+    ctx.reporter.warn(
+      '実行するコードがありません(js / javascript のコードブロックか、run を付けた実行ブロックを書きます)。コードの表示だけにします',
+      loc(slide, display.block),
+    );
+  }
+  if (display !== null && display !== runFence && display.assets !== null) {
+    ctx.reporter.warn('assets は実行するコードブロックにだけ指定できます(無視しました)', loc(slide, display.block));
+  }
+
+  const assets = new Map<string, RunAsset>();
+  for (const ref of runFence?.assets ?? []) {
+    if (assets.has(ref)) continue;
+    const where = loc(slide, runFence?.block);
+    const result = ctx.loadAsset(ref);
+    if ('error' in result) {
+      ctx.reporter.error(result.error, where);
+      continue;
+    }
+    for (const w of result.warnings) ctx.reporter.warn(w, where);
+    assets.set(ref, result.asset);
+  }
+
+  let figure: string | null = null;
+  if (display !== null) {
+    const html = ctx.md.renderer.render([display.token], ctx.md.options, env).trimEnd();
+    figure = html.replace(/^<figure class="([^"]*)"/, '<figure class="$1 runner__code"');
+  }
+  const data = {
+    source: runFence === null ? null : Buffer.from(runFence.token.content, 'utf8').toString('base64'),
+    // fromEntries defines own properties, so a key like "__proto__" survives JSON.stringify.
+    assets: Object.fromEntries(assets),
+  };
+
+  const inner: string[] = [];
+  if (heading !== null) inner.push(`<h2 class="slide__heading">${heading}</h2>`);
+  if (description !== null) inner.push(`<p class="code__description">${description}</p>`);
+  inner.push(`<div class="runner" data-runnable="${runFence !== null}">`);
+  if (figure !== null) inner.push(figure);
+  inner.push(
+    '<div class="runner__panel">',
+    '<div class="runner__frame-slot"></div>',
+    '<div class="runner__console-bar"><button type="button" class="runner__clear">Clear</button></div>',
+    '<div class="runner__console" role="log" aria-live="polite"></div>',
+    '</div>',
+    `<script type="application/json" class="runner__data">${escapeScriptJson(JSON.stringify(data))}</script>`,
+    '</div>',
+  );
+  return { type: 'code', classes: slide.directive.classes, inner: inner.join('\n') };
+}
+
 function renderSection(page: Page, index: number): string {
   const classes = ['slide', `slide--${page.type}`, ...page.classes.map((c) => `slide--class-${c}`)];
   const data = Object.entries(page.data ?? {})
@@ -414,11 +571,18 @@ export async function buildDeck(sourceText: string, opts: BuildOptions): Promise
       `デザイン ${design.id} のハイライトテーマ "${theme}" には対応していません(${highlighter.themes.join(' / ')})`,
     );
   }
-  const embedder = new ImageEmbedder({
-    baseDir: opts.baseDir ?? process.cwd(),
-    ...(opts.readFile ? { readFile: opts.readFile } : {}),
-  });
-  const ctx: Context = { md: createMarkdown(highlighter), reporter, fm, theme, embedder, icon: null };
+  const baseDir = opts.baseDir ?? process.cwd();
+  const readFile = opts.readFile ? { readFile: opts.readFile } : {};
+  const embedder = new ImageEmbedder({ baseDir, ...readFile });
+  const ctx: Context = {
+    md: createMarkdown(highlighter),
+    reporter,
+    fm,
+    theme,
+    embedder,
+    icon: null,
+    loadAsset: (ref) => loadRunAsset(ref, { baseDir, ...readFile }),
+  };
   const showsMeta = autoTitle || slides[0]?.directive.page === 'title';
   if (fm.icon !== undefined && fm.icon !== '' && showsMeta) {
     const result = embedder.embed(fm.icon);
@@ -439,6 +603,7 @@ export async function buildDeck(sourceText: string, opts: BuildOptions): Promise
     if (slide.type === 'title') pages.push(explicitTitlePage(ctx, slide, pages.length === 0));
     else if (slide.type === 'takahashi') pages.push(takahashiPage(ctx, slide));
     else if (slide.type === 'image') pages.push(imagePage(ctx, slide));
+    else if (slide.type === 'code') pages.push(codePage(ctx, slide));
     else pages.push(contentPage(ctx, slide));
   }
   if (pages.length === 0) reporter.error('スライドが1枚もありません');
@@ -465,6 +630,7 @@ export async function buildDeck(sourceText: string, opts: BuildOptions): Promise
     sections,
     '</main>',
     `<script id="viewer-js">\n${escapeInlineScript(opts.runtime.js.trimEnd())}\n</script>`,
+    `<script id="runner-js">\n${escapeInlineScript(opts.runtime.runner.trimEnd())}\n</script>`,
     '</body>',
     '</html>',
     '',

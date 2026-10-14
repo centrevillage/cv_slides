@@ -222,3 +222,63 @@ export function encodePng(image: RgbaImage): Buffer {
 export function bmpToPng(data: Uint8Array): Buffer {
   return encodePng(decodeBmp(data));
 }
+
+// ---------------------------------------------------------------------------
+// Run assets for code pages (DETAILED_SPEC.md 4.11, 6.5, 6.6)
+// ---------------------------------------------------------------------------
+
+/** Run assets larger than this produce a warning. */
+export const MAX_RUN_ASSET_BYTES = 2 * 1024 * 1024;
+
+const RUN_ASSET_TYPES: Readonly<Record<string, string>> = {
+  '.js': 'text/javascript',
+  '.mjs': 'text/javascript',
+  '.wasm': 'application/wasm',
+  '.json': 'application/json',
+  '.txt': 'text/plain',
+};
+
+export function runAssetType(ref: string): string {
+  return RUN_ASSET_TYPES[path.extname(ref).toLowerCase()] ?? 'application/octet-stream';
+}
+
+export interface RunAsset {
+  /** MIME type chosen from the extension. */
+  type: string;
+  /** Base64 of the file contents. */
+  data: string;
+}
+
+export type RunAssetResult = { asset: RunAsset; warnings: string[] } | { error: string };
+
+export interface RunAssetOptions {
+  /** Directory of the .md file; asset paths are relative to it and must stay inside it. */
+  baseDir: string;
+  readFile?: ReadFile;
+  maxBytes?: number;
+}
+
+/** Reads one `assets="..."` entry (path as written). Invalid paths and missing files are errors. */
+export function loadRunAsset(ref: string, opts: RunAssetOptions): RunAssetResult {
+  if (/^[A-Za-z][A-Za-z0-9+.-]*:/.test(ref) && !/^[A-Za-z]:[\\/]/.test(ref)) {
+    return { error: `アセットに URL は指定できません: ${ref}(md ファイルからの相対パスを書きます)` };
+  }
+  if (ref.startsWith('//')) return { error: `アセットに URL は指定できません: ${ref}(md ファイルからの相対パスを書きます)` };
+  if (path.isAbsolute(ref) || /^[A-Za-z]:[\\/]/.test(ref) || ref.startsWith('\\')) {
+    return { error: `アセットに絶対パスは指定できません: ${ref}(md ファイルからの相対パスを書きます)` };
+  }
+  const baseDir = path.resolve(opts.baseDir);
+  const file = path.resolve(baseDir, ref);
+  const inside = path.relative(baseDir, file);
+  if (inside === '' || inside === '..' || inside.startsWith(`..${path.sep}`) || path.isAbsolute(inside)) {
+    return { error: `アセットは md ファイルのフォルダの中に置いてください: ${ref}` };
+  }
+  const data = (opts.readFile ?? readFileOrNull)(file);
+  if (data === null) return { error: `アセットのファイルが見つかりません: ${ref}` };
+  const maxBytes = opts.maxBytes ?? MAX_RUN_ASSET_BYTES;
+  const warnings: string[] = [];
+  if (data.length > maxBytes) {
+    warnings.push(`アセットが ${formatBytes(maxBytes)} を超えています(${formatBytes(data.length)}): ${ref}`);
+  }
+  return { asset: { type: runAssetType(ref), data: Buffer.from(data).toString('base64') }, warnings };
+}

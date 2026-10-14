@@ -375,6 +375,10 @@
       prev: prev,
       enterPresentation: enterPresentation,
       exitPresentation: exitPresentation,
+      // Handles a key exactly like a keydown on the page (used by the code runner, 6.2).
+      handleKey: function (key, repeat) {
+        return applyKey(String(key), !!repeat);
+      },
       slides: slides,
       internals: internals,
       get index() {
@@ -740,9 +744,14 @@
     function onKeyDown(e) {
       if (e.defaultPrevented || e.isComposing || e.altKey || e.ctrlKey || e.metaKey) return;
       if (isEditable(e.target)) return;
-      var action = keyAction(state.mode, e.key);
-      if (!action) return;
-      e.preventDefault();
+      if (applyKey(e.key, e.repeat)) e.preventDefault();
+    }
+
+    // Shared by keydown and keys forwarded from code runner iframes (6.2). Returns true when
+    // the key was handled.
+    function applyKey(key, repeat) {
+      var action = keyAction(state.mode, key);
+      if (!action) return false;
       switch (action) {
         case "next":
           next();
@@ -757,12 +766,13 @@
           go(count - 1);
           break;
         case "present":
-          if (!e.repeat) enterPresentation();
+          if (!repeat) enterPresentation();
           break;
         case "nav":
-          if (!e.repeat) exitPresentation();
+          if (!repeat) exitPresentation();
           break;
       }
+      return true;
     }
 
     function onFullscreenChange() {
